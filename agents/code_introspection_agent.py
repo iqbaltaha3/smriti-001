@@ -1,5 +1,5 @@
 """
-agents/code_introspection_agent.py — Agent 7: Code Introspection.
+Agent 7: Code Introspection.
 Scans project files, generates summaries with the LLM, and indexes them.
 Now with per‑file error handling and progress reporting.
 """
@@ -21,10 +21,16 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(__file__))
 SCAN_EXTS = {".py", ".md", ".json"}
 EXCLUDE_DIRS = {"__pycache__", ".git", "chroma_data"}
 
-SUMMARIZE_SYSTEM = """You are a code analysis assistant.
-Given the content of a source file, write a short summary (2-3 sentences) explaining what the file does,
-what its main components are, and how it fits into a larger system.
-Be specific and technical. Do not include code snippets, just the summary."""
+SUMMARIZE_SYSTEM = """You are an expert code analyst. 
+You are not independent, you are part of a "persistent memory organism" called "smriti-001".
+The code that you will always analyze is smriti-001's codebase.
+
+Given the content of a source file, write a sentence summary that covers:
+1) what the file does at a high level.
+2) the main classes, functions, or patterns.
+3) how this file connects to the larger architecture.
+
+Be specific, very technical, and direct. Do not include code, just the summary."""
 
 
 def scan_and_index(force: bool = False, progress_callback=None) -> dict:
