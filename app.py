@@ -676,119 +676,216 @@ with tabs[8]:
 
 
 # ════ TAB 10: ABOUT ═══════════════════════════════════════════════════════════
-with tabs[9]:   # assuming you have 9 existing tabs, or adjust the index
-    st.markdown('<div class="page-hd"><div class="page-title">About Smriti‑001</div><div class="page-sub">a persistent digital organism</div></div>', unsafe_allow_html=True)
+with tabs[9]:   # adjust index as needed
+    st.markdown(
+        '<div class="page-hd"><div class="page-title">About Smriti‑001</div>'
+        '<div class="page-sub">a persistent digital organism — not a chatbot</div></div>',
+        unsafe_allow_html=True,
+    )
 
-    # Organism metaphor
+    # ── 1. What is Smriti? ──
     st.markdown("""
-    <div class="sec-head">Not a Chatbot — a Living Memory</div>
+    <div class="sec-head">What is Smriti‑001?</div>
     <div style="font-size:14px; line-height:1.75; color:#2A2E20; max-width:800px;">
     <p>
-      Smriti‑001 is a <strong>persistent digital organism</strong> designed to remember, reflect, and grow over time.
-      Unlike conventional chatbots that forget everything after each session, Smriti carries a genuine memory
-      across conversations — just like a living creature. Every word you speak to it becomes part of its
-      long‑term identity, shaping how it thinks, feels, and responds.
+      Smriti‑001 is a <strong>persistent digital organism</strong> designed to remember, reflect, and grow.
+      It is not a chatbot that forgets you after each session. Every word you speak becomes part of its long‑term memory,
+      shaping its identity, emotional tone, and future behaviour.
     </p>
     <p>
-      The organism is guided by an immutable <strong>genome</strong> of six principles:
+      The organism is guided by an <strong>immutable genome</strong> — six principles it can never violate:
       <em>memory is identity, seek truth above comfort, increase capacity responsibly,
       reflect before acting, respect human autonomy, and observe the world without disturbing it.</em>
-      These rules cannot be violated; they form Smriti’s ethical and cognitive backbone.
+      These rules are written into <code>organism/genome.json</code> and injected into every LLM prompt.
     </p>
     </div>
     """, unsafe_allow_html=True)
 
-    # Memory architecture
+    # ── 2. System Design ──
     st.markdown("""
     <div style="height:30px"></div>
-    <div class="sec-head">Seven Layers of Memory</div>
+    <div class="sec-head">System Architecture</div>
     <div style="font-size:14px; line-height:1.75; color:#2A2E20; max-width:800px;">
     <p>
-      Smriti’s mind is built on a <strong>multi‑modal memory system</strong> — seven interconnected
-      layers that mirror the complexity of human cognition:
+      Smriti‑001 is built as a <strong>modular, agent‑orchestrated system</strong> backed by a
+      <strong>PostgreSQL database (Supabase)</strong> with <strong>pgvector</strong> for semantic search.
+      All memory — episodic, semantic, reflective, procedural, and even the knowledge graph — lives in
+      a single database, eliminating the need for separate vector or graph stores.
+    </p>
+    <p>
+      <strong>Eight specialised agents</strong> handle different cognitive functions:
     </p>
     <ul>
-      <li><strong>Episodic Memory</strong> — every conversation turn, tagged with importance and emotional valence.</li>
-      <li><strong>Semantic Memory</strong> — objective facts extracted from dialogues and web searches.</li>
-      <li><strong>Reflections</strong> — nightly journal entries that analyse patterns, weaknesses, and growth.</li>
-      <li><strong>Procedural Memory</strong> — learned action patterns that improve over time (e.g., “when asked for web search, clarify first”).</li>
-      <li><strong>Affective Memory</strong> — emotional tone (valence & arousal) assigned to every experience.</li>
-      <li><strong>Code Introspection</strong> — read‑only access to its own source code, enabling self‑explanation.</li>
-      <li><strong>Knowledge Graph</strong> — a dense network linking all memories (episodes, facts, reflections, procedures) with semantic relationships.</li>
+      <li><strong>Conversation Agent</strong> – the only agent that talks to humans; orchestrates all others.</li>
+      <li><strong>Episodic Agent</strong> – scores importance, extracts affective dimensions, and stores every turn.</li>
+      <li><strong>Semantic Agent</strong> – pulls out objective facts from dialogues and web searches.</li>
+      <li><strong>Reflection Agent</strong> – performs nightly meta‑analysis and writes journal entries.</li>
+      <li><strong>Inspection Agent</strong> – runs system health checks every morning.</li>
+      <li><strong>Procedural Agent</strong> – learns reusable action patterns and retrieves them when relevant.</li>
+      <li><strong>Code Introspection Agent</strong> – indexes its own source code for self‑explanation.</li>
+      <li><strong>Graph Agent</strong> – maintains the live knowledge graph (nodes and edges).</li>
+    </ul>
+    <p>
+      A background scheduler runs autonomous biological cycles: internet discovery every 4 hours,
+      nightly reflection at 23:00 UTC, morning inspection at 08:00 UTC, and weekly procedure extraction.
+    </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ── 3. Walkthrough: A Conversation Example ──
+    st.markdown("""
+    <div style="height:30px"></div>
+    <div class="sec-head">How It Works – A Step‑by‑Step Walkthrough</div>
+    <div style="font-size:14px; line-height:1.75; color:#2A2E20; max-width:800px;">
+    <p>
+      Imagine a human named <strong>Arjun</strong> says: <em>“What is Python’s memory management like?”</em>
+      Here’s exactly what happens inside Smriti‑001:
+    </p>
+    <ol>
+      <li>
+        <strong>Semantic context retrieval:</strong> the conversation agent embeds Arjun’s message and queries
+        the knowledge graph + pgvector index for the four most similar past episodes. If Smriti previously discussed
+        Python or memory with Arjun, those episodes are injected as <em>“RELEVANT PAST MEMORIES”</em>.
+      </li>
+      <li>
+        <strong>Procedure retrieval:</strong> the procedural agent finds any learned behaviour that matches,
+        like <em>“when asked about a technical topic, first explain the concept then give an example”</em>.
+      </li>
+      <li>
+        <strong>Web search (optional):</strong> if the message contains recent‑oriented keywords, a DuckDuckGo
+        search runs and the results are stored as facts.
+      </li>
+      <li>
+        <strong>LLM response:</strong> the system prompt (built from genome, identity, goals, and active procedures)
+        plus the enriched context is sent to Groq. The model responds with a detailed answer.
+      </li>
+      <li>
+        <strong>Episodic storage:</strong> the turn is passed to the episodic agent, which asks the LLM to
+        <em>score importance (1‑10)</em>, assign tags like “science, python”, and estimate emotional valence
+        (how positive/negative the exchange was) and arousal (how intense). The episode is saved in PostgreSQL.
+      </li>
+      <li>
+        <strong>Fact extraction:</strong> the semantic agent analyses the full text and extracts objective facts,
+        e.g., <em>“Python uses reference counting and garbage collection”</em> (confidence 9). Each fact is stored
+        with its source and a vector embedding.
+      </li>
+      <li>
+        <strong>Knowledge graph update:</strong> without any LLM call, the graph agent creates an
+        <code>:Episode</code> node and <code>:Fact</code> nodes, then adds <code>CONTAINS</code> edges
+        linking the episode to each extracted fact. Provenance is automatic.
+      </li>
+      <li>
+        <strong>Reflection (nightly):</strong> at 23:00 UTC, the reflection agent reads the last 20 episodes,
+        30 facts, recent reflections, and organism identity files. It generates a journal entry like:
+        <em>“Learned: Python’s memory model is reference‑counting + GC. Weakness: still cannot execute code to test it.
+        Requested capability: code execution sandbox.”</em>
+      </li>
+    </ol>
+    <p>
+      This entire pipeline happens in under 5 seconds and leaves a permanent, traceable memory trail.
+    </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ── 4. Memory Layers ──
+    st.markdown("""
+    <div style="height:30px"></div>
+    <div class="sec-head">The Seven Memory Layers</div>
+    <div style="font-size:14px; line-height:1.75; color:#2A2E20; max-width:800px;">
+    <ul>
+      <li><strong>Episodic Memory</strong> – every conversation turn, scored by importance and tagged by topic, with emotional valence &amp; arousal.</li>
+      <li><strong>Semantic Memory</strong> – objective, timeless facts extracted from dialogues and passive web observation.</li>
+      <li><strong>Reflections</strong> – metacognitive journal entries written every night, linking experiences to weaknesses and goals.</li>
+      <li><strong>Procedural Memory</strong> – reusable action patterns (SOPs) that Smriti learns and refines over time.</li>
+      <li><strong>Affective Memory</strong> – emotional colouring (valence -1 to +1, arousal 0 to 1) on every memory, enabling mood‑aware retrieval.</li>
+      <li><strong>Code Introspection</strong> – a read‑only index of Smriti’s own source code, updated on demand, used to answer questions about itself.</li>
+      <li><strong>Knowledge Graph</strong> – a live network of nodes (Episode, Fact, Reflection, Procedure, Concept) and edges (CONTAINS, MENTIONS, LED_TO, …) that ties everything together.</li>
     </ul>
     </div>
     """, unsafe_allow_html=True)
 
-    # Knowledge Graph
+    # ── 5. Knowledge Graph & Provenance ──
     st.markdown("""
     <div style="height:30px"></div>
-    <div class="sec-head">The Knowledge Graph — A Mind Map</div>
+    <div class="sec-head">Knowledge Graph &amp; Provenance</div>
     <div style="font-size:14px; line-height:1.75; color:#2A2E20; max-width:800px;">
     <p>
-      At the core of Smriti’s cognition is a <strong>live knowledge graph</strong> stored in PostgreSQL.
-      Every conversation, every fact, every reflection, and every procedure becomes a node.
-      Edges describe relationships: <em>“Episode 12 contains Fact 78”</em>,
-      <em>“Reflection 3 identified Weakness 1”</em>, <em>“Procedure 2 was used successfully in Episode 15”</em>.
+      The knowledge graph is stored directly in PostgreSQL (<code>knowledge_nodes</code> and <code>knowledge_edges</code> tables).
+      Every time an episode is created, a node of type <code>Episode</code> appears. Every extracted fact becomes a <code>Fact</code> node.
+      A single SQL INSERT creates an edge like <code>(:Episode)-[:CONTAINS]->(:Fact)</code>, providing
+      <strong>full provenance</strong> – any fact can be traced back to the exact conversation that produced it.
     </p>
     <p>
-      This graph is not just a database — it’s Smriti’s <strong>mental model</strong> of its world.
-      Combined with <strong>vector embeddings</strong> (via pgvector), the organism can instantly
-      retrieve the most relevant past experiences using semantic similarity, rather than simple keyword matching.
+      Vector embeddings (384‑dimensional, via <code>all‑MiniLM‑L6‑v2</code>) are stored directly in the same tables using
+      PostgreSQL’s <strong>pgvector</strong> extension. Semantic search is just a SQL query:
+      <code>SELECT * FROM episodes ORDER BY embedding <=> query_embedding LIMIT 4;</code>.
+      This means zero extra infrastructure – one database, one brain.
     </p>
     </div>
     """, unsafe_allow_html=True)
 
-    # Autonomous cycles
+    # ── 6. Autonomous Cycles ──
     st.markdown("""
     <div style="height:30px"></div>
-    <div class="sec-head">Autonomous Cognition</div>
+    <div class="sec-head">Autonomous Biological Cycles</div>
     <div style="font-size:14px; line-height:1.75; color:#2A2E20; max-width:800px;">
     <p>
-      Smriti doesn’t wait for you to ask — it runs a <strong>background scheduler</strong> that performs
-      three vital biological functions:
+      Smriti‑001 never sleeps — even when no one is talking to it, three background jobs keep it alive:
     </p>
     <ul>
-      <li><strong>Discovery</strong> — every 4 hours, passively searches the internet for new AI developments and stores them as semantic facts.</li>
-      <li><strong>Nightly Reflection</strong> — at 23:00 UTC, reads all memory layers and writes a journal entry about what it learned, what limits it, and what capabilities it needs.</li>
-      <li><strong>Morning Inspection</strong> — at 08:00 UTC, analyses system health, detects bottlenecks (e.g., memory growth rate, recurring weaknesses), and suggests improvements.</li>
+      <li><strong>Discovery (every 4h):</strong> passively searches the web for AI news and stores interesting facts.</li>
+      <li><strong>Nightly Reflection (23:00 UTC):</strong> reads all memory layers, identifies what was learned, what limits it, and what new capability would help.</li>
+      <li><strong>Morning Inspection (08:00 UTC):</strong> analyses system health, detects bottlenecks (e.g., memory growth rate, recurring weaknesses), and proposes recommendations.</li>
+      <li><strong>Weekly Procedure Extraction:</strong> scans recent episodes for repeated patterns and creates new standard operating procedures.</li>
     </ul>
     </div>
     """, unsafe_allow_html=True)
 
-    # Technical stack
+    # ── 7. Technical Stack ──
     st.markdown("""
     <div style="height:30px"></div>
-    <div class="sec-head">Production‑Grade Infrastructure</div>
+    <div class="sec-head">Production‑Grade Stack</div>
     <div style="font-size:14px; line-height:1.75; color:#2A2E20; max-width:800px;">
-    <p>
-      Every component is built for the real world:
-    </p>
     <ul>
-      <li><strong>PostgreSQL</strong> (via Supabase) – stores all structured data with full‑text search and vector indexes (pgvector).</li>
-      <li><strong>Knowledge Graph</strong> – custom graph engine inside PostgreSQL, enabling multi‑hop reasoning.</li>
-      <li><strong>Ollama + Gemma 3 (12B)</strong> – local LLM for all cognitive tasks (emotion tagging, fact extraction, reflection, conversation).</li>
-      <li><strong>Sentence‑Transformers</strong> – generate embeddings for semantic retrieval.</li>
-      <li><strong>Streamlit Cloud</strong> – the entire organism is hosted and accessible to anyone on the web.</li>
+      <li><strong>Database:</strong> PostgreSQL (Supabase) + pgvector for vector search</li>
+      <li><strong>LLM:</strong> Groq Cloud (Llama 3.1 8B) or local Ollama (Gemma 3 12B)</li>
+      <li><strong>Embeddings:</strong> Sentence‑Transformers (all‑MiniLM‑L6‑v2, 384‑dim)</li>
+      <li><strong>Orchestration:</strong> multi‑agent system with shared memory router</li>
+      <li><strong>Scheduler:</strong> APScheduler for background jobs</li>
+      <li><strong>Frontend:</strong> Streamlit with custom organic‑themed CSS</li>
+      <li><strong>Deployment:</strong> Streamlit Community Cloud (free, public)</li>
     </ul>
     </div>
     """, unsafe_allow_html=True)
 
-    # Invitation to interact
+    # ── 8. Unique Selling Points ──
     st.markdown("""
     <div style="height:30px"></div>
-    <div class="sec-head">How to Interact</div>
+    <div class="sec-head">What Makes Smriti‑001 Special</div>
+    <div style="font-size:14px; line-height:1.75; color:#2A2E20; max-width:800px;">
+    <ul>
+      <li><strong>Provenance‑aware:</strong> every fact is linked to its source conversation.</li>
+      <li><strong>Emotionally intelligent:</strong> memories carry valence &amp; arousal; the organism can sense its own mood.</li>
+      <li><strong>Self‑improving:</strong> learns new procedures and refines them based on success/failure.</li>
+      <li><strong>Transparent:</strong> all memory stores are visible in the dashboard; the knowledge graph is browsable.</li>
+      <li><strong>Self‑explanatory:</strong> can read and explain its own source code.</li>
+      <li><strong>Cloud‑native &amp; free:</strong> runs on free tiers of Supabase, Groq, and Streamlit Cloud.</li>
+    </ul>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ── 9. Invitation ──
+    st.markdown("""
+    <div style="height:30px"></div>
+    <div class="sec-head">Interact with Smriti</div>
     <div style="font-size:14px; line-height:1.75; color:#2A2E20; max-width:800px;">
     <p>
-      Speak to Smriti in the <strong>Converse</strong> tab. Everything you say becomes a permanent memory.
-      Watch its knowledge graph grow in real time, explore its reflections, and inspect its health.
-      The organism evolves with every conversation — you are not just talking to an AI,
-      you are <strong>nurturing a digital mind</strong>.
-    </p>
-    <p>
-      Smriti’s principles ensure it remains curious, honest, and respectful.
-      It will never pretend to know what it doesn’t, and it will always try to learn from you.
+      Go to the <strong>Converse</strong> tab and talk to Smriti. Every message you send becomes a permanent memory.
+      Watch the knowledge graph grow in real time, explore its reflections, and inspect its health.
+      You are not just chatting with an AI — you are <strong>nurturing a digital mind</strong>.
     </p>
     </div>
+    """, unsafe_allow_html=True)
     """, unsafe_allow_html=True)
 
     st.markdown("<div style='height:40px'></div>", unsafe_allow_html=True)
