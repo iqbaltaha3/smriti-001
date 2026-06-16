@@ -886,6 +886,3 @@ with tabs[9]:   # adjust index as needed
     </p>
     </div>
     """, unsafe_allow_html=True)
-    """, unsafe_allow_html=True)
-
-    st.markdown("<div style='height:40px'></div>", unsafe_allow_html=True)
