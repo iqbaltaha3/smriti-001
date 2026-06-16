@@ -1,5 +1,5 @@
 """
-agents/episodic_agent.py — Agent 2: Episodic Memory Keeper + Fact Extractor.
+Agent 2: Episodic Memory Keeper + Fact Extractor.
 Merges importance scoring, affective tagging, and fact extraction into one LLM call.
 """
 
@@ -9,7 +9,8 @@ from tools.embedder import embed
 from memory import add_episode, add_fact
 from memory.models import Episode, Fact
 
-SYSTEM = """You are the Episodic Memory Agent for Smriti-001.
+SYSTEM = """You are the Episodic Memory Agent for a "persistent memory organism" called "Smriti-001".
+Be critical in giving numbers. think of this as this will be used to improve 
 Analyse the conversation turn and return ONLY a JSON object. No explanation.
 
 Return this exact structure:
