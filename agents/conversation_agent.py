@@ -12,7 +12,6 @@ from memory import (
     get_episode_by_id
 )
 from agents.episodic_agent import store_episode
-from agents.semantic_agent import extract_and_store
 from agents.procedural_agent import get_relevant_procedures
 
 BASE = os.path.dirname(os.path.dirname(__file__))
