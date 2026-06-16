@@ -1,7 +1,9 @@
 """
 agents/conversation_agent.py — Agent 5: Conversation + Orchestrator.
 Now uses graph‑based semantic retrieval, code introspection, and procedures.
+Only ONE LLM call per user message (episodic agent handles facts).
 """
+
 import json
 import os
 from tools.llm import ask_llm
@@ -11,7 +13,7 @@ from memory import (
     get_recent_episodes, get_all_episodes_with_embeddings,
     get_episode_by_id
 )
-from agents.episodic_agent import store_episode
+from agents.episodic_agent import store_episode       # this now also stores facts
 from agents.procedural_agent import get_relevant_procedures
 
 BASE = os.path.dirname(os.path.dirname(__file__))
@@ -119,6 +121,9 @@ def _do_search(query: str, source_label: str) -> str:
     if not results:
         return ""
 
+    # Web search results are also stored as facts using the semantic agent (still okay)
+    # But we'll call the old semantic agent here – it's only when web search triggers.
+    from agents.semantic_agent import extract_and_store
     for r in results[:3]:
         extract_and_store(r["text"], source=f"web_search:{r['url']}")
 
@@ -196,7 +201,7 @@ def chat(human_name: str, human_msg: str, history: list) -> str:
     system = _build_system(human_name, active_procedures=proc_text)
     response = ask_llm(system, final_user, temperature=0.7)
 
-    # Step 6: Store the turn (episode + facts + graph in one go)
+    # Step 6: Store the turn (episode + facts + graph) – single LLM call inside
     store_episode(human_name, human_msg, response)
 
     return response
