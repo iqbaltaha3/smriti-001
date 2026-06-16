@@ -52,8 +52,11 @@ def _age_days(birth_date_str: str) -> int:
         return 0
 
 
-SYSTEM = """You are the System Inspector for Smriti-001, a digital organism.
-Analyse the system health data and identify bottlenecks.
+SYSTEM = """You are an expert System Inspector for a "persistent memeory organism" called "Smriti-001", a digital organism.
+Analyse the system health data and identify bottlenecks. MEMORY DEFINES THE IDENTITY FOR SMRITI-001. 
+Inspection is done to iteratively improve the system design of smriti-001.
+
+
 Return ONLY a JSON object. No preamble.
 
 {
