@@ -197,10 +197,7 @@ def chat(human_name: str, human_msg: str, history: list) -> str:
     system = _build_system(human_name, active_procedures=proc_text)
     response = ask_llm(system, final_user, temperature=0.7)
 
-    # Step 6: Store this turn (episode + facts + graph)
-    ep = store_episode(human_name, human_msg, response)
-    extract_and_store(f"{human_msg} {response}",
-                      source=f"conversation_with_{human_name}",
-                      source_episode_id=ep.id)
+        # Step 6: Store the turn (episode + facts + graph in one go)
+    store_episode(human_name, human_msg, response)
 
     return response
