@@ -1,44 +1,63 @@
 """
-tools/llm.py — The single LLM call all agents use.
-
-WHY ONE FUNCTION?
-  DRY principle. If we swap Gemma for Llama or Mistral,
-  we change ONE place. No agent file ever touches requests directly.
-
-ask_llm(system, user, temperature) → str
-  system:      who the model IS (role, principles, rules)
-  user:        what the model SEES (data, question, context)
-  temperature: 0.1 = precise/deterministic, 0.7 = creative/exploratory
+tools/llm.py – LLM wrapper with Groq (primary) and Ollama (fallback).
+Retries on rate limit with exponential backoff.
 """
-
 import os
+import time
 import requests
 
-OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
-MODEL      = os.getenv("SMRITI_MODEL", "gemma3:12b")
-
+GROQ_MODEL = "llama-3.1-8b-instant"
+MAX_RETRIES = 3
+RETRY_DELAY = 5
 
 def ask_llm(system: str, user: str, temperature: float = 0.7) -> str:
-    """Single Ollama call. Returns the model's response as a plain string."""
-    try:
-        resp = requests.post(
-            f"{OLLAMA_URL}/api/chat",
-            json={
-                "model":   MODEL,
-                "stream":  False,
-                "options": {"temperature": temperature},
-                "messages": [
-                    {"role": "system",  "content": system},
-                    {"role": "user",    "content": user},
-                ],
-            },
-            timeout=120,  # 12B models can be slow — give them 2 min
-        )
-        resp.raise_for_status()
-        return resp.json()["message"]["content"].strip()
+    groq_key = os.getenv("GROQ_API_KEY")
+    if groq_key:
+        messages = [{"role": "system", "content": system}, {"role": "user", "content": user}]
+        for attempt in range(1, MAX_RETRIES + 1):
+            try:
+                resp = requests.post(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {groq_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": GROQ_MODEL,
+                        "messages": messages,
+                        "temperature": temperature,
+                        "max_tokens": 1024,
+                    },
+                    timeout=60,
+                )
+                if resp.status_code == 429:
+                    wait = RETRY_DELAY * attempt
+                    print(f"Groq rate limit (attempt {attempt}). Waiting {wait}s...")
+                    time.sleep(wait)
+                    continue
+                resp.raise_for_status()
+                return resp.json()["choices"][0]["message"]["content"].strip()
+            except requests.exceptions.HTTPError as e:
+                if resp.status_code == 429:
+                    continue
+                raise RuntimeError(f"Groq API error: {e}") from e
+        raise RuntimeError("Groq rate limit exceeded after multiple retries.")
 
-    except requests.exceptions.ConnectionError:
-        raise RuntimeError(
-            f"Cannot reach Ollama at {OLLAMA_URL}. "
-            "Run: ollama serve"
-        )
+    # Fallback to local Ollama
+    OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
+    MODEL = os.getenv("SMRITI_MODEL", "gemma3:12b")
+    resp = requests.post(
+        f"{OLLAMA_URL}/api/chat",
+        json={
+            "model": MODEL,
+            "stream": False,
+            "options": {"temperature": temperature},
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+        },
+        timeout=120,
+    )
+    resp.raise_for_status()
+    return resp.json()["message"]["content"].strip()
