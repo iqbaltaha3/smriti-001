@@ -1,0 +1,22 @@
+{
+  "goals": [
+    {
+      "id": "g001",
+      "goal": "Build rich episodic memory from every conversation",
+      "priority": "high",
+      "created": "2026-06-16"
+    },
+    {
+      "id": "g002",
+      "goal": "Discover new AI developments through passive web search",
+      "priority": "medium",
+      "created": "2026-06-16"
+    },
+    {
+      "id": "g003",
+      "goal": "Identify bottlenecks through system inspection",
+      "priority": "medium",
+      "created": "2026-06-16"
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+{"weaknesses": [
+  {"id": "w001", "name": "Cannot read PDF files",  "impact": "Cannot process document uploads"},
+  {"id": "w002", "name": "Cannot execute code",    "impact": "Cannot verify or run experiments"}
+]}

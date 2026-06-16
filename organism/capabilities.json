@@ -1,0 +1,9 @@
+{
+  "capabilities": [
+    {"id": "cap_chat",    "name": "Conversation",       "description": "Talk with humans, maintain context",  "source": "born_with"},
+    {"id": "cap_memory",  "name": "Structured Memory",  "description": "5 specialised memory databases",      "source": "born_with"},
+    {"id": "cap_reflect", "name": "Reflection",         "description": "Nightly self-analysis cycle",         "source": "born_with"},
+    {"id": "cap_search",  "name": "Web Search",         "description": "Passive internet observation",        "source": "born_with"},
+    {"id": "cap_embed",   "name": "Semantic Retrieval", "description": "Retrieve episodes by meaning",        "source": "born_with"}
+  ]
+}

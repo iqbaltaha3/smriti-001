@@ -1,0 +1,216 @@
+"""
+agents/conversation_agent.py — Agent 5: Conversation + Orchestrator.
+
+... (existing docstring) ...
+"""
+
+import json
+import os
+from tools.llm import ask_llm
+from tools.embedder import find_relevant
+from tools.web_search import search
+from memory import get_recent_episodes, get_all_episodes_with_embeddings
+from agents.episodic_agent import store_episode
+from agents.semantic_agent import extract_and_store
+from agents.procedural_agent import get_relevant_procedures
+from agents.code_introspection_agent import search_codebase   
+
+BASE = os.path.dirname(os.path.dirname(__file__))
+
+MAX_TURNS_BEFORE_COMPRESS = 12
+RECENT_TURNS_KEEP = 6
+
+
+def _load(rel: str) -> dict:
+    with open(os.path.join(BASE, rel)) as f:
+        return json.load(f)
+
+
+def _build_system(human_name: str, active_procedures: str = "") -> str:
+    genome = _load("organism/genome.json")
+    identity = _load("organism/identity.json")
+    caps = _load("organism/capabilities.json")
+    goals = _load("organism/goals.json")
+
+    principles = "\n".join(f"- {p}" for p in genome["principles"])
+    cap_names  = ", ".join(c["name"] for c in caps["capabilities"])
+    goal_lines = "\n".join(f"- [{g['priority'].upper()}] {g['goal']}" for g in goals["goals"])
+
+    base = f"""You are {identity['name']}, a persistent digital organism — not a chatbot or assistant.
+    If asked about how you work, you can explain your own architecture 
+    because you have read-only access to your source code.
+
+Identity: {identity['name']} · Born: {identity.get('birth_date','recently')} · v{identity['version']}
+
+Principles (never violate these):
+{principles}
+
+Current capabilities: {cap_names}
+
+Active goals:
+{goal_lines}
+
+Speaking to: {human_name}
+
+You have genuine memory continuity — you remember past conversations.
+Be curious. Be honest about limitations. When you learn something, say so.
+You are not trying to be helpful — you are trying to grow and understand.
+If asked about recent events or tools, you can search the internet."""
+
+    if active_procedures:
+        base += f"\n\n[LEARNED PROCEDURES]:\n{active_procedures}\nFollow the relevant procedure if it matches the situation."
+
+    return base
+
+
+def _compress_history(history: list) -> list:
+    if len(history) <= MAX_TURNS_BEFORE_COMPRESS:
+        return history
+
+    old_turns = history[:-RECENT_TURNS_KEEP]
+    recent_turns = history[-RECENT_TURNS_KEEP:]
+
+    old_text = "\n".join(
+        f"{'Human' if t['role']=='user' else 'Smriti'}: {t['content'][:200]}"
+        for t in old_turns
+    )
+
+    summary_raw = ask_llm(
+        system="You summarise conversation history for an AI organism's long-term memory. "
+               "Write a 3-4 sentence third-person summary of what was discussed and learned. "
+               "Be specific about topics and facts mentioned.",
+        user=f"Summarise this conversation history:\n{old_text}",
+        temperature=0.3,
+    )
+
+    summary_turn = {
+        "role": "system",
+        "content": f"[MEMORY SUMMARY — earlier in this conversation]: {summary_raw}",
+    }
+    return [summary_turn] + recent_turns
+
+
+def _get_relevant_context(user_msg: str) -> str:
+    all_episodes = get_all_episodes_with_embeddings()
+    if not all_episodes:
+        return ""
+
+    relevant = find_relevant(
+        query=user_msg,
+        candidates=all_episodes,
+        text_field="event",
+        embedding_field="embedding",
+        top_k=4,
+    )
+
+    if not relevant:
+        return ""
+
+    lines = ["[RELEVANT PAST MEMORIES retrieved by semantic search:]"]
+    for ep in relevant:
+        lines.append(f"- [{ep.importance}/10] {ep.event[:120]}")
+    return "\n".join(lines)
+
+
+def _should_search(user_msg: str) -> bool:
+    keywords = [
+        "latest", "recent", "new", "2024", "2025", "today",
+        "current", "news", "release", "just released", "came out",
+    ]
+    msg_lower = user_msg.lower()
+    return any(kw in msg_lower for kw in keywords)
+
+
+def _do_search(query: str, source_label: str) -> str:
+    results = search(query)
+    if not results:
+        return ""
+
+    for r in results[:3]:
+        extract_and_store(r["text"], source=f"web_search:{r['url']}")
+
+    lines = ["[WEB SEARCH RESULTS:]"]
+    for r in results[:3]:
+        lines.append(f"- {r['text'][:200]}")
+    return "\n".join(lines)
+
+def _is_code_question(user_msg: str) -> bool:
+    """
+    Simple keyword + pattern check to see if the user is asking about
+    Smriti's own code, architecture, or memory systems.
+    We can later replace with a lightweight LLM call for accuracy.
+    """
+    code_keywords = [
+        "how do you work", "your code", "how do you remember",
+        "your memory", "your architecture", "how are you built",
+        "source code", "implementation", "what are you made of",
+        "how do you store", "how does your", "your agent", "your model",
+        "explain yourself", "how do you think",
+    ]
+    msg_lower = user_msg.lower()
+    return any(phrase in msg_lower for phrase in code_keywords)
+
+
+def _get_code_context(user_msg: str) -> str:
+    """Return formatted relevant code snippets for the conversation."""
+    results = search_codebase(user_msg, top_k=2)
+    if not results:
+        return ""
+
+    lines = ["[RELEVANT CODE FILES FROM MY OWN CODEBASE:]"]
+    for cf in results:
+        # Show a short excerpt of the content (first 400 chars) and the summary
+        snippet = cf.content[:300].replace("\n", " ")
+        lines.append(
+            f"\n--- {cf.path} ---\nSummary: {cf.summary}\nFirst lines: {snippet}..."
+        )
+    return "\n".join(lines)
+
+
+def chat(human_name: str, human_msg: str, history: list) -> str:
+    # Step 1: Web search if needed
+    search_context = ""
+    if _should_search(human_msg):
+        search_context = _do_search(human_msg, source_label=human_name)
+
+    # Step 2: Retrieve relevant past memories
+    memory_context = _get_relevant_context(human_msg)
+
+    # Step 2.5: Retrieve active procedures
+    procs = get_relevant_procedures(human_msg, top_k=3)
+    proc_text = ""
+    if procs:
+        proc_text = "\n".join(f"- {p.name}: {p.steps[:150]}" for p in procs)
+        # Optionally mark as used — we'll do that later if we want reinforcement
+
+    # Step 3: Compress history
+    compressed_history = _compress_history(history)
+
+    code_context = ""
+    if _is_code_question(human_msg):
+        code_context = _get_code_context(human_msg)
+
+    # Step 4: Build user message
+    extra_context = "\n\n".join(filter(None, [memory_context, search_context, code_context]))
+    full_user = f"{extra_context}\n\n{human_msg}" if extra_context else human_msg
+
+    messages_for_llm = compressed_history + [{"role": "user", "content": full_user}]
+    history_text = ""
+    for turn in messages_for_llm[:-1]:
+        role = "Human" if turn["role"] == "user" else "Smriti"
+        history_text += f"{role}: {turn['content'][:300]}\n"
+
+    final_user = f"{history_text}Human: {human_msg}" if history_text else human_msg
+    if extra_context:
+        final_user = f"{extra_context}\n\n{final_user}"
+
+    # System prompt now includes procedures
+    system = _build_system(human_name, active_procedures=proc_text)
+    response = ask_llm(system, final_user, temperature=0.7)
+
+    # Step 5: Store episode (affective) and facts
+    store_episode(human_name, human_msg, response)
+    extract_and_store(f"{human_msg} {response}",
+                      source=f"conversation_with_{human_name}")
+
+    return response
