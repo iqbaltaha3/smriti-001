@@ -1,5 +1,5 @@
 """
-agents/graph_agent.py — Agent 7: Knowledge Graph Maintainer.
+Agent 7: Knowledge Graph Maintainer.
 Uses Supabase PostgreSQL to store nodes and edges, and provides semantic search.
 """
 import json
