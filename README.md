@@ -1,4 +1,4 @@
-# Smriti-001 — Persistent Digital Organism
+# Smriti-001 — Persistent Memory Organism
 
 ## Setup
 
