@@ -1,19 +1,7 @@
 """
 agents/semantic_agent.py — Agent 1: Semantic Memory Keeper.
-
-RESPONSIBILITY:
-  Given a piece of text (conversation, web search result, etc.),
-  extract objective facts and store them as structured Fact records.
-
-  WHAT COUNTS AS A FACT?
-    Objective, timeless statements. Not opinions. Not conversation flow.
-    "Python 3.12 was released in 2023" → YES
-    "The human seemed interested in ML" → NO (subjective)
-    "LLaMA 3 is an open-source model by Meta" → YES
-
-  METADATA RICHNESS:
-    Each fact now also gets: confidence, category, embedding,
-    and affective dimensions (valence, arousal).
+Extracts objective facts from text and stores them.
+Now also updates the knowledge graph.
 """
 
 import json
@@ -21,7 +9,6 @@ from tools.llm import ask_llm
 from tools.embedder import embed
 from memory import add_fact
 from memory.models import Fact
-
 
 SYSTEM = """You are the Semantic Memory Agent for Smriti-001.
 Extract factual statements from the given text.
@@ -42,11 +29,8 @@ Rules:
 - Maximum 5 facts per call"""
 
 
-def extract_and_store(text: str, source: str = "") -> list[Fact]:
-    """
-    Extract facts from any text and store them in semantic.db.
-    Returns list of Fact models that were stored.
-    """
+def extract_and_store(text: str, source: str = "", source_episode_id: int = None) -> list[Fact]:
+    """Extract facts from any text and store them. Returns list of Fact models."""
     raw = ask_llm(SYSTEM, f"Text to analyse:\n{text[:1000]}", temperature=0.2)
 
     facts_data = []
@@ -64,6 +48,7 @@ def extract_and_store(text: str, source: str = "") -> list[Fact]:
             continue
 
         embedding_json = embed(item["fact"])
+        embedding_list = json.loads(embedding_json)
 
         fact = Fact(
             fact       = str(item.get("fact", ""))[:400],
@@ -76,5 +61,10 @@ def extract_and_store(text: str, source: str = "") -> list[Fact]:
         )
         fact.id = add_fact(fact)
         stored.append(fact)
+
+        # Update knowledge graph
+        from agents.graph_agent import after_fact_added
+        after_fact_added(fact.id, embedding_list, fact.confidence, fact.valence,
+                         source_episode_id)
 
     return stored

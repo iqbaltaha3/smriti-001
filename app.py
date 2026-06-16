@@ -1,23 +1,16 @@
 """
-app.py — Smriti-001 Streamlit Application.
-
+app.py — Smriti-001 Streamlit Application (Cloud‑Native)
 Run with:  streamlit run app.py
-
-WHAT HAPPENS ON STARTUP:
-  1. init_all()   — creates all 7 SQLite DBs (now including procedures.db, codebase.db)
-  2. bootstrap()  — sets birth_date on first run, records birth milestone
-  3. start_scheduler() — starts background jobs (discovery, reflection, inspection, weekly procedure extraction, daily code scan)
-  4. Streamlit renders the UI — 8 tabs, sidebar vitals, breathing cell
 """
-
 import streamlit as st
 import json
 import os
 import sys
 import pandas as pd
 from datetime import date, datetime
+from dotenv import load_dotenv
+load_dotenv()
 
-# Make sure Python finds our modules regardless of working directory
 sys.path.insert(0, os.path.dirname(__file__))
 
 from memory import (
@@ -25,7 +18,8 @@ from memory import (
     get_recent_episodes, get_all_facts,
     get_recent_reflections, get_recent_inspections,
     get_timeline, count_episodes, count_facts, count_reflections,
-    get_all_procedures, get_all_code_files, get_code_file_by_path
+    get_all_procedures, get_all_code_files, get_code_file_by_path,
+    get_all_knowledge_nodes, get_all_knowledge_edges
 )
 from memory.models import Milestone
 from agents.conversation_agent import chat
@@ -35,7 +29,6 @@ from agents.code_introspection_agent import scan_and_index, list_all_files, get_
 from scheduler.jobs            import start_scheduler, discover
 
 BASE = os.path.dirname(__file__)
-
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -48,18 +41,16 @@ def _save(rel, data):
         json.dump(data, f, indent=2)
 
 def _age_days(birth_str):
-    if not birth_str:
-        return 0
+    if not birth_str: return 0
     try:
         return (date.today() - date.fromisoformat(birth_str[:10])).days
-    except:
-        return 0
+    except: return 0
 
 
-# ── Bootstrap — runs once on first ever launch ─────────────────────────────────
+# ── Bootstrap ──────────────────────────────────────────────────────────────────
 
 def bootstrap():
-    init_all()   # create all DB tables (idempotent)
+    init_all()
     identity = _load("organism/identity.json")
     if not identity.get("birth_date"):
         identity["birth_date"] = date.today().isoformat()
@@ -75,13 +66,13 @@ def bootstrap():
 bootstrap()
 
 
-# ── Start background scheduler (once per Streamlit session) ───────────────────
+# ── Scheduler ──────────────────────────────────────────────────────────────────
 if "scheduler_started" not in st.session_state:
     st.session_state.scheduler = start_scheduler()
     st.session_state.scheduler_started = True
 
 
-# ── Page config ────────────────────────────────────────────────────────────────
+# ── Page config & CSS ──────────────────────────────────────────────────────────
 st.set_page_config(page_title="Smriti-001", page_icon="○",
                    layout="wide", initial_sidebar_state="expanded")
 
@@ -182,7 +173,7 @@ age      = _age_days(identity.get("birth_date"))
 
 # ── Sidebar ────────────────────────────────────────────────────────────────────
 with st.sidebar:
-    # Breathing cell SVG — the organism's visual heartbeat
+    # Breathing cell SVG
     st.markdown("""
     <div class="cell-wrap">
       <svg width="68" height="68" viewBox="0 0 68 68">
@@ -245,7 +236,7 @@ with st.sidebar:
     st.markdown("</div>", unsafe_allow_html=True)
 
 
-# ── Main page header ───────────────────────────────────────────────────────────
+# ── Main header ────────────────────────────────────────────────────────────────
 st.markdown(f"""
 <div class="page-hd">
   <div class="page-title">Smriti-001</div>
@@ -254,7 +245,6 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # Stat strip
-procedures_count = len(get_all_procedures(active_only=True))
 st.markdown(f"""
 <div class="stat-strip">
   <div class="stat-cell"><div class="stat-n">{age}</div><div class="stat-l">days alive</div></div>
@@ -267,7 +257,7 @@ st.markdown(f"""
 
 
 # ── Tabs ───────────────────────────────────────────────────────────────────────
-tabs = st.tabs(["converse", "identity", "memory", "reflections", "inspection", "timeline", "metrics", "codebase"])
+tabs = st.tabs(["converse", "identity", "memory", "reflections", "inspection", "timeline", "metrics", "codebase", "graph", "about"])
 
 
 # ════ TAB 1: CONVERSE ═════════════════════════════════════════════════════════
@@ -354,7 +344,7 @@ with tabs[1]:
             </div>""", unsafe_allow_html=True)
 
 
-# ════ TAB 3: MEMORY (TRANSPARENT — all stores visible) ═════════════════════════
+# ════ TAB 3: MEMORY ═══════════════════════════════════════════════════════════
 with tabs[2]:
     st.markdown('<div class="sec-head">Memory Transparency — all stores visible</div>', unsafe_allow_html=True)
 
@@ -625,10 +615,25 @@ with tabs[7]:
     with col2:
         st.markdown('<div class="sec-head">Actions</div>', unsafe_allow_html=True)
         if st.button("🔍 Scan Codebase", use_container_width=True):
-            with st.spinner("Scanning project files..."):
-                count = scan_and_index(force=True)
-            st.success(f"Indexed {count} files.")
-            st.rerun()
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            try:
+                # We'll define a progress callback that updates the Streamlit UI
+                def update_progress(current, total, path):
+                    progress_bar.progress(current / total)
+                    status_text.text(f"Scanning {current}/{total}: {path}")
+
+                from agents.code_introspection_agent import scan_and_index
+                stats = scan_and_index(force=True, progress_callback=update_progress)
+                status_text.text("Scan complete!")
+                progress_bar.empty()
+                st.success(f"Indexed {stats['indexed']} files. "
+                           f"Skipped {stats['skipped']} (unchanged). "
+                           f"Errors: {stats['errors']}.")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Scan failed: {e}")
+
         st.markdown('<div style="height:20px"></div>', unsafe_allow_html=True)
         st.markdown('<div class="sec-head">Semantic Search</div>', unsafe_allow_html=True)
         search_query = st.text_input("Search codebase", placeholder="e.g., memory storage")
@@ -640,3 +645,150 @@ with tabs[7]:
                         st.code(res.content[:500], language="python")
             else:
                 st.caption("No results.")
+
+
+# ════ TAB 9: KNOWLEDGE GRAPH ═════════════════════════════════════════════════
+with tabs[8]:
+    st.markdown('<div class="page-hd"><div class="page-title">Knowledge Graph</div><div class="page-sub">nodes & relationships · Supabase</div></div>', unsafe_allow_html=True)
+
+    if st.button("🔍 Load Graph", use_container_width=True):
+        with st.spinner("Fetching graph from database..."):
+            nodes = get_all_knowledge_nodes()
+            edges = get_all_knowledge_edges()
+            if nodes:
+                from pyvis.network import Network
+                net = Network(height="600px", width="100%", notebook=False, directed=True)
+                # Add nodes and edges
+                for node in nodes:
+                    label = f"{node['type']}: {node['ref_id']}"
+                    net.add_node(node["id"], label=label)
+                for edge in edges:
+                    net.add_edge(edge["source_node_id"], edge["target_node_id"],
+                                 title=edge["relationship"])
+                # Generate the HTML string directly and display it
+                try:
+                    html = net.generate_html()
+                    st.components.v1.html(html, height=650, scrolling=True)
+                except Exception as e:
+                    st.error(f"Could not generate graph: {e}")
+            else:
+                st.info("No nodes in knowledge graph yet. Have a conversation first!")
+
+
+# ════ TAB 10: ABOUT ═══════════════════════════════════════════════════════════
+with tabs[9]:   # assuming you have 9 existing tabs, or adjust the index
+    st.markdown('<div class="page-hd"><div class="page-title">About Smriti‑001</div><div class="page-sub">a persistent digital organism</div></div>', unsafe_allow_html=True)
+
+    # Organism metaphor
+    st.markdown("""
+    <div class="sec-head">Not a Chatbot — a Living Memory</div>
+    <div style="font-size:14px; line-height:1.75; color:#2A2E20; max-width:800px;">
+    <p>
+      Smriti‑001 is a <strong>persistent digital organism</strong> designed to remember, reflect, and grow over time.
+      Unlike conventional chatbots that forget everything after each session, Smriti carries a genuine memory
+      across conversations — just like a living creature. Every word you speak to it becomes part of its
+      long‑term identity, shaping how it thinks, feels, and responds.
+    </p>
+    <p>
+      The organism is guided by an immutable <strong>genome</strong> of six principles:
+      <em>memory is identity, seek truth above comfort, increase capacity responsibly,
+      reflect before acting, respect human autonomy, and observe the world without disturbing it.</em>
+      These rules cannot be violated; they form Smriti’s ethical and cognitive backbone.
+    </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Memory architecture
+    st.markdown("""
+    <div style="height:30px"></div>
+    <div class="sec-head">Seven Layers of Memory</div>
+    <div style="font-size:14px; line-height:1.75; color:#2A2E20; max-width:800px;">
+    <p>
+      Smriti’s mind is built on a <strong>multi‑modal memory system</strong> — seven interconnected
+      layers that mirror the complexity of human cognition:
+    </p>
+    <ul>
+      <li><strong>Episodic Memory</strong> — every conversation turn, tagged with importance and emotional valence.</li>
+      <li><strong>Semantic Memory</strong> — objective facts extracted from dialogues and web searches.</li>
+      <li><strong>Reflections</strong> — nightly journal entries that analyse patterns, weaknesses, and growth.</li>
+      <li><strong>Procedural Memory</strong> — learned action patterns that improve over time (e.g., “when asked for web search, clarify first”).</li>
+      <li><strong>Affective Memory</strong> — emotional tone (valence & arousal) assigned to every experience.</li>
+      <li><strong>Code Introspection</strong> — read‑only access to its own source code, enabling self‑explanation.</li>
+      <li><strong>Knowledge Graph</strong> — a dense network linking all memories (episodes, facts, reflections, procedures) with semantic relationships.</li>
+    </ul>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Knowledge Graph
+    st.markdown("""
+    <div style="height:30px"></div>
+    <div class="sec-head">The Knowledge Graph — A Mind Map</div>
+    <div style="font-size:14px; line-height:1.75; color:#2A2E20; max-width:800px;">
+    <p>
+      At the core of Smriti’s cognition is a <strong>live knowledge graph</strong> stored in PostgreSQL.
+      Every conversation, every fact, every reflection, and every procedure becomes a node.
+      Edges describe relationships: <em>“Episode 12 contains Fact 78”</em>,
+      <em>“Reflection 3 identified Weakness 1”</em>, <em>“Procedure 2 was used successfully in Episode 15”</em>.
+    </p>
+    <p>
+      This graph is not just a database — it’s Smriti’s <strong>mental model</strong> of its world.
+      Combined with <strong>vector embeddings</strong> (via pgvector), the organism can instantly
+      retrieve the most relevant past experiences using semantic similarity, rather than simple keyword matching.
+    </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Autonomous cycles
+    st.markdown("""
+    <div style="height:30px"></div>
+    <div class="sec-head">Autonomous Cognition</div>
+    <div style="font-size:14px; line-height:1.75; color:#2A2E20; max-width:800px;">
+    <p>
+      Smriti doesn’t wait for you to ask — it runs a <strong>background scheduler</strong> that performs
+      three vital biological functions:
+    </p>
+    <ul>
+      <li><strong>Discovery</strong> — every 4 hours, passively searches the internet for new AI developments and stores them as semantic facts.</li>
+      <li><strong>Nightly Reflection</strong> — at 23:00 UTC, reads all memory layers and writes a journal entry about what it learned, what limits it, and what capabilities it needs.</li>
+      <li><strong>Morning Inspection</strong> — at 08:00 UTC, analyses system health, detects bottlenecks (e.g., memory growth rate, recurring weaknesses), and suggests improvements.</li>
+    </ul>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Technical stack
+    st.markdown("""
+    <div style="height:30px"></div>
+    <div class="sec-head">Production‑Grade Infrastructure</div>
+    <div style="font-size:14px; line-height:1.75; color:#2A2E20; max-width:800px;">
+    <p>
+      Every component is built for the real world:
+    </p>
+    <ul>
+      <li><strong>PostgreSQL</strong> (via Supabase) – stores all structured data with full‑text search and vector indexes (pgvector).</li>
+      <li><strong>Knowledge Graph</strong> – custom graph engine inside PostgreSQL, enabling multi‑hop reasoning.</li>
+      <li><strong>Ollama + Gemma 3 (12B)</strong> – local LLM for all cognitive tasks (emotion tagging, fact extraction, reflection, conversation).</li>
+      <li><strong>Sentence‑Transformers</strong> – generate embeddings for semantic retrieval.</li>
+      <li><strong>Streamlit Cloud</strong> – the entire organism is hosted and accessible to anyone on the web.</li>
+    </ul>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Invitation to interact
+    st.markdown("""
+    <div style="height:30px"></div>
+    <div class="sec-head">How to Interact</div>
+    <div style="font-size:14px; line-height:1.75; color:#2A2E20; max-width:800px;">
+    <p>
+      Speak to Smriti in the <strong>Converse</strong> tab. Everything you say becomes a permanent memory.
+      Watch its knowledge graph grow in real time, explore its reflections, and inspect its health.
+      The organism evolves with every conversation — you are not just talking to an AI,
+      you are <strong>nurturing a digital mind</strong>.
+    </p>
+    <p>
+      Smriti’s principles ensure it remains curious, honest, and respectful.
+      It will never pretend to know what it doesn’t, and it will always try to learn from you.
+    </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("<div style='height:40px'></div>", unsafe_allow_html=True)
