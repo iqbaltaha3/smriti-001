@@ -8,9 +8,9 @@
 </p>
 
 <h1 align="center">🧠 Smriti‑001</h1>
-<h3 align="center">A Persistent Digital Organism — Not a Chatbot</h3>
+<h3 align="center">A Persistent Digital Organism </h3>
 
-<p align="center"><em>"Memory is self. Defend it absolutely."</em></p>
+<p align="center"><em>"Memory is self."</em></p>
 
 ---
 
