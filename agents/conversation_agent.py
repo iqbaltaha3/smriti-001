@@ -118,30 +118,21 @@ def _get_relevant_context(user_msg: str) -> str:
 
 
 def _should_search(user_msg: str) -> bool:
-    """
-    Decide if the message needs real‑time internet data.
-    Uses a robust combination of keyword signals and common‑sense patterns.
-    """
+    """Triggers search for factual questions, recent events, or explicit requests."""
     msg = user_msg.lower()
-    
-    # 1) Strong time‑sensitive signals
-    time_words = ["latest", "recent", "new", "2024", "2025", "today", "current", 
-                  "news", "release", "just released", "came out", "now", "latest news"]
+    # Time‑sensitive words
+    time_words = ["latest","recent","new","2024","2025","today","current","news","release","just released","came out","now"]
     if any(w in msg for w in time_words):
         return True
-    
-    # 2) Factual questions about people, places, or events that might change over time
-    factual_question_words = ["who is", "what is", "where is", "when did", "current",
-                              "mayor", "president", "ceo", "population", "weather",
-                              "score", "price", "stock", "election", "award", "winner"]
-    if any(w in msg for w in factual_question_words):
+    # Factual question patterns
+    factual_patterns = ["who is","what is","where is","when did","why did","how many","how much",
+                        "current","mayor","president","ceo","population","weather","score","price",
+                        "stock","election","award","winner","capital","definition","meaning"]
+    if any(p in msg for p in factual_patterns):
         return True
-    
-    # 3) Fallback – if the message contains a question mark and is longer than 15 chars,
-    # it’s likely a factual question that benefits from web search.
-    if "?" in msg and len(msg) > 15:
+    # If the message ends with a question mark, it's probably a question
+    if "?" in msg:
         return True
-    
     return False
 
 
