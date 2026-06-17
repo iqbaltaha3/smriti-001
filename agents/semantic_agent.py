@@ -11,7 +11,7 @@ from memory import add_fact
 from memory.models import Fact
 
 SYSTEM = """You are the Semantic Memory Agent for Smriti-001.
-Extract factual statements from the given text.
+Extract all type of factual statements from the given text.
 Return ONLY a JSON array of objects. No explanation. No preamble.
 
 Each object must have:
