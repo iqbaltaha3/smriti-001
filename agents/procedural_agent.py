@@ -18,6 +18,7 @@ from memory import (
     get_all_procedures_with_embeddings,
     add_procedure,
     update_procedure,
+    get_procedure_by_id,
 )
 from memory.models import Procedure
 
@@ -47,10 +48,11 @@ Each object:
 
 Maximum 2 procedures per call. Return ONLY a JSON array. No explanation."""
 
+
 def extract_procedures_from_recent_episodes(limit: int = 20) -> list[Procedure]:
     """
     Analyse recent episodes and convert observed patterns into procedures.
-    Called by the scheduler (nightly).
+    Called by the scheduler or manually.
     """
     episodes = get_recent_episodes(limit)
     if not episodes:
@@ -74,7 +76,7 @@ def extract_procedures_from_recent_episodes(limit: int = 20) -> list[Procedure]:
 
     new_procs = []
     for item in procedures_data:
-                if not isinstance(item, dict) or not item.get("name"):
+        if not isinstance(item, dict) or not item.get("name"):
             continue
 
         trigger_text = item.get("trigger", "")
@@ -88,13 +90,15 @@ def extract_procedures_from_recent_episodes(limit: int = 20) -> list[Procedure]:
         embedding_json = embed(trigger_text)
 
         proc = Procedure(
-            name    = str(item.get("name", "")),
-            trigger = trigger_text,
-            steps   = steps_text,
+            name      = str(item.get("name", "")),
+            trigger   = trigger_text,
+            steps     = steps_text,
             embedding = embedding_json,
         )
         proc.id = add_procedure(proc)
         new_procs.append(proc)
+
+    return new_procs
 
 
 def get_relevant_procedures(user_msg: str, top_k: int = 3) -> list[Procedure]:
@@ -106,7 +110,6 @@ def get_relevant_procedures(user_msg: str, top_k: int = 3) -> list[Procedure]:
     if not all_procs:
         return []
 
-    # Use existing semantic retriever (cosine similarity)
     relevant = find_relevant(
         query          = user_msg,
         candidates     = all_procs,
@@ -114,14 +117,17 @@ def get_relevant_procedures(user_msg: str, top_k: int = 3) -> list[Procedure]:
         embedding_field= "embedding",
         top_k          = top_k,
     )
-    return relevant  # already Procedure objects
+    return relevant
 
 
 def update_procedure_outcome(proc_id: int, success: bool) -> None:
     """Called after a procedure is used, to record success/failure."""
-    proc = get_procedure_by_id(proc_id) if 'get_procedure_by_id' in dir() else None
-    # We'll import from memory at the top; but we need to add the import.
-    # Already imported above: get_procedure_by_id not imported yet; we'll add it.
-    # For brevity, I'll add the import inside the function or assume it's imported.
-    # But let's fix the import: add get_procedure_by_id to the import list.
-    pass
+    proc = get_procedure_by_id(proc_id)
+    if not proc:
+        return
+    if success:
+        proc.success_count += 1
+    else:
+        proc.failure_count += 1
+    proc.last_used = __import__('datetime').datetime.utcnow().isoformat()
+    update_procedure(proc)
