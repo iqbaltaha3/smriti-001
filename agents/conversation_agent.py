@@ -197,12 +197,12 @@ def _get_code_context(user_msg: str) -> str:
             f"\n--- {cf.path} ---\nSummary: {cf.summary}\nFirst lines: {snippet}..."
         )
     return "\n".join(lines)
-    
-
-print(f"SEARCH DEBUG: {_should_search(human_msg)} for msg: {human_msg[:80]}")
 
 
 def chat(human_name: str, human_msg: str, history: list) -> str:
+
+    print(f"SEARCH DEBUG: {_should_search(human_msg)} for msg: {human_msg[:80]}")
+    
     # Step 1: Web search if needed
     search_context = ""
     if _should_search(human_msg):
