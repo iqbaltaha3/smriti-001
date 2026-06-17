@@ -146,17 +146,31 @@ def _should_search(user_msg: str) -> bool:
 
 
 def _do_search(query: str, source_label: str) -> str:
+    # Try the original query first
     results = search(query)
-    if not results:
-        # Try a broader query by removing question words
-        broader = query.replace("who is", "").replace("what is", "").replace("current", "").strip()
-        if broader != query:
-            results = search(broader)
 
+    # If no results, try progressively broader queries
     if not results:
-        return ""   # genuinely no information
+        # Remove question words and trim
+        alt_query = query.lower()
+        for word in ["who is", "what is", "where is", "when did", "current"]:
+            alt_query = alt_query.replace(word, "")
+        alt_query = alt_query.strip()
+        if alt_query and alt_query != query.lower():
+            results = search(alt_query)
 
-    # Store facts (unchanged)
+    # If still nothing, try a very simple factual query
+    if not results:
+        # Extract likely entity name (last words) and add "name"
+        words = query.split()
+        if len(words) > 2:
+            simple = " ".join(words[-3:]) + " name"
+            results = search(simple)
+
+    # If genuinely no results, return empty (the LLM will say "I couldn't find it")
+    if not results:
+        return ""
+
     from agents.semantic_agent import extract_and_store
     for r in results[:3]:
         extract_and_store(r["text"], source=f"web_search:{r['url']}")
