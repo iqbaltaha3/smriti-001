@@ -146,9 +146,15 @@ def _should_search(user_msg: str) -> bool:
 def _do_search(query: str, source_label: str) -> str:
     results = search(query)
     if not results:
-        return ""
+        # Try a broader query by removing question words
+        broader = query.replace("who is", "").replace("what is", "").replace("current", "").strip()
+        if broader != query:
+            results = search(broader)
 
-    # Store web results as facts (using semantic agent)
+    if not results:
+        return ""   # genuinely no information
+
+    # Store facts (unchanged)
     from agents.semantic_agent import extract_and_store
     for r in results[:3]:
         extract_and_store(r["text"], source=f"web_search:{r['url']}")
