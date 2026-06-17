@@ -1,12 +1,8 @@
 """
-app.py — Smriti-001 Streamlit Application (zero redundancy)
-Run with:  streamlit run app.py
+app.py — Smriti-001 Streamlit Application (polished, with reflections tab)
 """
 import streamlit as st
-import json
-import os
-import sys
-import pandas as pd
+import json, os, sys, pandas as pd
 from datetime import date, datetime
 from dotenv import load_dotenv
 load_dotenv()
@@ -26,7 +22,7 @@ from agents.conversation_agent import chat
 from agents.reflection_agent   import run_reflection
 from agents.inspection_agent   import run_inspection
 from agents.code_introspection_agent import scan_and_index, list_all_files, get_file_content, search_codebase
-from agents.procedural_agent   import extract_procedures_from_recent_episodes   # <-- for button
+from agents.procedural_agent   import extract_procedures_from_recent_episodes
 from scheduler.jobs            import start_scheduler, discover
 
 BASE = os.path.dirname(__file__)
@@ -42,8 +38,7 @@ def _save(rel, data):
 
 def _age_days(birth_str):
     if not birth_str: return 0
-    try:
-        return (date.today() - date.fromisoformat(birth_str[:10])).days
+    try: return (date.today() - date.fromisoformat(birth_str[:10])).days
     except: return 0
 
 # ── Cached data fetchers ──────────────────────────────────────────────────────
@@ -56,7 +51,7 @@ def cached_facts(limit=60):
     return get_all_facts(limit)
 
 @st.cache_data(ttl=5)
-def cached_reflections(limit=10):
+def cached_reflections(limit=20):
     return get_recent_reflections(limit)
 
 @st.cache_data(ttl=5)
@@ -94,8 +89,7 @@ if "scheduler_started" not in st.session_state:
     st.session_state.scheduler_started = True
 
 # ── Page config & CSS ──────────────────────────────────────────────────────────
-st.set_page_config(page_title="Smriti-001", page_icon="○",
-                   layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Smriti-001", page_icon="○", layout="wide", initial_sidebar_state="expanded")
 
 st.markdown("""
 <style>
@@ -116,9 +110,7 @@ section[data-testid="stSidebar"] * { color:#1C1C18 !important; }
     letter-spacing:0.08em !important; padding:10px 16px !important; margin:0 !important;
 }
 [data-testid="stTabs"] [role="tab"][aria-selected="true"] { color:#3D4A2E !important; border-bottom:2px solid #3D4A2E !important; }
-[data-testid="stTextInput"] input,
-[data-testid="stTextArea"] textarea,
-[data-testid="stChatInput"] textarea {
+[data-testid="stTextInput"] input, [data-testid="stTextArea"] textarea, [data-testid="stChatInput"] textarea {
     background:#F8F7F2 !important; border:1px solid #C8C4B0 !important;
     border-radius:2px !important; color:#1C1C18 !important;
     font-family:'Inter',sans-serif !important; font-size:14px !important;
@@ -135,6 +127,7 @@ section[data-testid="stSidebar"] * { color:#1C1C18 !important; }
 [data-testid="stButton"] button[kind="primary"] { background:#3D4A2E !important; color:#F0EEE8 !important; }
 [data-testid="stExpander"] { border:1px solid #C8C4B0 !important; border-radius:0 !important; background:transparent !important; }
 hr { border-color:#C8C4B0 !important; }
+
 /* Custom components */
 .org-name { font-family:'DM Serif Display',serif; font-size:22px; color:#1C1C18; margin:0 0 2px; }
 .org-meta  { font-family:'IBM Plex Mono',monospace; font-size:10px; color:#8A9180; text-transform:uppercase; letter-spacing:0.08em; }
@@ -171,6 +164,29 @@ hr { border-color:#C8C4B0 !important; }
 .ins-card   { border:1px solid #C8C4B0; padding:14px 16px; margin-bottom:10px; background:#F8F7F2; }
 .ins-title  { font-family:'IBM Plex Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.1em; color:#8A9180; margin-bottom:6px; }
 .ins-val    { font-size:13px; color:#2A2E20; line-height:1.6; }
+/* Memory tab specific styling */
+.memory-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 24px;
+}
+.memory-column {
+    border: 1px solid #E8E6DE;
+    border-radius: 2px;
+    padding: 16px;
+    background: #F8F7F2;
+}
+.memory-column h4 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #8A9180;
+    margin: 0 0 12px 0;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #E8E6DE;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -241,7 +257,6 @@ with st.sidebar:
         st.cache_data.clear()
         st.rerun()
 
-    # Procedure extraction button (placed right after Reflect / Inspect)
     if st.button("Extract Procedures", use_container_width=True):
         with st.spinner("Extracting procedures from recent episodes..."):
             new_procs = extract_procedures_from_recent_episodes(limit=30)
@@ -281,7 +296,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ── Tabs ───────────────────────────────────────────────────────────────────────
-tabs = st.tabs(["converse", "identity", "memory", "inspection", "metrics", "codebase", "graph", "about"])
+tabs = st.tabs(["converse", "identity", "memory", "reflections", "inspection", "metrics", "codebase", "graph", "about"])
 
 # ════ TAB 1: CONVERSE ═════════════════════════════════════════════════════════
 with tabs[0]:
@@ -351,64 +366,80 @@ with tabs[1]:
               <div style="font-size:12px;color:#8A9180">{w['impact']}</div>
             </div>""", unsafe_allow_html=True)
 
-# ════ TAB 3: MEMORY ═══════════════════════════════════════════════════════════
+# ════ TAB 3: MEMORY (organized, professional) ═════════════════════════════════
 with tabs[2]:
-    st.markdown('<div class="sec-head">Memory Transparency — all stores visible</div>', unsafe_allow_html=True)
-    with st.expander("📖 Episodic Memory", expanded=True):
-        episodes = cached_episodes(40)
+    st.markdown('<div class="sec-head">Memory Stores</div>', unsafe_allow_html=True)
+
+    # Row 1: Episodic and Semantic side by side
+    col1, col2 = st.columns(2, gap="large")
+    with col1:
+        st.markdown("""
+        <div class="memory-column">
+        <h4>📖 Episodic Memory</h4>
+        """, unsafe_allow_html=True)
+        episodes = cached_episodes(30)
         if episodes:
             for ep in episodes:
-                imp  = ep.importance
+                imp = ep.importance
                 pips = "".join(f'<span style="display:inline-block;width:4px;height:10px;background:{"#3D4A2E" if i<imp else "#C8C4B0"};margin-right:1px"></span>' for i in range(10))
                 color = "#3D4A2E" if ep.valence>0.1 else "#8A9180" if ep.valence>-0.1 else "#B85C3A"
                 st.markdown(f"""
                 <div class="mem-card">
-                  <div class="mem-text">{ep.event[:180]}</div>
-                  <div class="mem-meta">{pips} {imp}/10 · {ep.tags} · {ep.timestamp[:10]} · <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:{color};margin-left:4px"></span> {ep.valence:+.2f}</div>
+                  <div class="mem-text">{ep.event[:160]}</div>
+                  <div class="mem-meta">{pips} {imp}/10 · {ep.tags} · {ep.timestamp[:10]} · <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:{color};"></span></div>
                 </div>""", unsafe_allow_html=True)
         else:
             st.markdown('<div class="empty">No episodes yet.</div>', unsafe_allow_html=True)
-    with st.expander("🧠 Semantic Memory", expanded=True):
-        facts = cached_facts(60)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with col2:
+        st.markdown("""
+        <div class="memory-column">
+        <h4>🧠 Semantic Memory</h4>
+        """, unsafe_allow_html=True)
+        facts = cached_facts(30)
         if facts:
             for f in facts:
                 color = "#3D4A2E" if f.valence>0.1 else "#8A9180" if f.valence>-0.1 else "#B85C3A"
                 st.markdown(f"""
                 <div class="mem-card">
-                  <div class="mem-text">{f.fact[:200]}</div>
-                  <div class="mem-meta">confidence {f.confidence}/10 · {f.category} · {f.timestamp[:10]} · <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:{color};margin-left:4px"></span> {f.valence:+.2f}</div>
+                  <div class="mem-text">{f.fact[:180]}</div>
+                  <div class="mem-meta">conf {f.confidence}/10 · {f.category} · {f.timestamp[:10]} · <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:{color};"></span></div>
                 </div>""", unsafe_allow_html=True)
         else:
-            st.markdown('<div class="empty">No facts extracted yet.</div>', unsafe_allow_html=True)
-    with st.expander("🌙 Reflections", expanded=False):
-        reflections = cached_reflections(10)
-        if reflections:
-            for ref in reflections:
-                with st.expander(f"{ref.timestamp[:16].replace('T',' ')} — {ref.trigger}"):
-                    if ref.learned: st.markdown(f"**Learned:** {ref.learned}")
-                    if ref.weakness_found: st.markdown(f"**Weakness:** {ref.weakness_found}")
-                    if ref.cap_requested: st.markdown(f"**Requested:** {ref.cap_requested}")
-                    st.markdown(f"**Principles:** {'no violations' if ref.principles_ok else '⚠ violation detected'}")
-                    st.divider()
-                    st.markdown(ref.content)
-        else:
-            st.markdown('<div class="empty">No reflections yet. Click Reflect in the sidebar.</div>', unsafe_allow_html=True)
-    with st.expander("⚙️ Procedural Memory", expanded=False):
+            st.markdown('<div class="empty">No facts yet.</div>', unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
+
+    # Row 2: Procedures and Milestones side by side
+    col3, col4 = st.columns(2, gap="large")
+    with col3:
+        st.markdown("""
+        <div class="memory-column">
+        <h4>⚙️ Procedural Memory</h4>
+        """, unsafe_allow_html=True)
         procedures = cached_procedures()
         if procedures:
             for proc in procedures:
                 total = proc.success_count + proc.failure_count
-                success_rate = f"{proc.success_count}/{total}" if total>0 else "unused"
-                active = "✅ active" if proc.is_active else "❌ inactive"
+                sr = f"{proc.success_count}/{total}" if total>0 else "unused"
+                active = "✅" if proc.is_active else "❌"
                 st.markdown(f"""
                 <div class="mem-card">
-                  <div style="font-size:13px;font-weight:500;color:#2A2E20">{proc.name} <span style="font-size:10px;color:#8A9180">({active})</span></div>
+                  <div style="font-size:13px;font-weight:500;color:#2A2E20">{active} {proc.name}</div>
                   <div class="mem-text"><em>Trigger:</em> {proc.trigger[:120]}</div>
-                  <div class="mem-meta">Success: {success_rate} · Last used: {proc.last_used[:10]}</div>
+                  <div class="mem-meta">Success: {sr} · Last used: {proc.last_used[:10]}</div>
                 </div>""", unsafe_allow_html=True)
         else:
             st.markdown('<div class="empty">No procedures learned yet.</div>', unsafe_allow_html=True)
-    with st.expander("📅 Life Milestones", expanded=False):
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with col4:
+        st.markdown("""
+        <div class="memory-column">
+        <h4>📅 Life Milestones</h4>
+        """, unsafe_allow_html=True)
         timeline = cached_timeline()
         if timeline:
             for event in timeline[-10:]:
@@ -424,9 +455,30 @@ with tabs[2]:
                 </div>""", unsafe_allow_html=True)
         else:
             st.markdown('<div class="empty">No milestones yet.</div>', unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
-# ════ TAB 4: INSPECTION ═══════════════════════════════════════════════════════
+# ════ TAB 4: REFLECTIONS (dedicated) ═════════════════════════════════════════
 with tabs[3]:
+    st.markdown('<div class="sec-head">Reflection Journal</div>', unsafe_allow_html=True)
+    reflections = cached_reflections(20)
+    if reflections:
+        for ref in reflections:
+            with st.expander(f"{ref.timestamp[:16].replace('T',' ')} — {ref.trigger}"):
+                if ref.learned:
+                    st.markdown(f"**Learned:** {ref.learned}")
+                if ref.weakness_found:
+                    st.markdown(f"**Weakness:** {ref.weakness_found}")
+                if ref.cap_requested:
+                    st.markdown(f"**Requested:** {ref.cap_requested}")
+                p_label = "no violations" if ref.principles_ok else "⚠ violation detected"
+                st.markdown(f"**Principles:** {p_label}")
+                st.divider()
+                st.markdown(ref.content)
+    else:
+        st.markdown('<div class="empty">No reflections yet. Click Reflect in the sidebar.</div>', unsafe_allow_html=True)
+
+# ════ TAB 5: INSPECTION ═══════════════════════════════════════════════════════
+with tabs[4]:
     st.markdown('<div class="sec-head">System Health Inspections</div>', unsafe_allow_html=True)
     inspections = cached_inspections(10)
     if inspections:
@@ -448,8 +500,8 @@ with tabs[3]:
     else:
         st.markdown('<div class="empty">No inspections yet. Click Inspect in the sidebar.</div>', unsafe_allow_html=True)
 
-# ════ TAB 5: METRICS ═════════════════════════════════════════════════════════
-with tabs[4]:
+# ════ TAB 6: METRICS ═════════════════════════════════════════════════════════
+with tabs[5]:
     st.markdown('<div class="page-hd"><div class="page-title">Metrics</div><div class="page-sub">emotional landscape · procedural memory · system health</div></div>', unsafe_allow_html=True)
     recent_eps = cached_episodes(30)
     procedures = cached_procedures()
@@ -485,11 +537,10 @@ with tabs[4]:
     with col2:
         st.markdown('<div class="sec-head">Fact Emotion Distribution</div>', unsafe_allow_html=True)
         if facts:
-            # Categorise facts into negative, neutral, positive
             neg = sum(1 for f in facts if f.valence < -0.1)
             neu = sum(1 for f in facts if -0.1 <= f.valence <= 0.1)
             pos = sum(1 for f in facts if f.valence > 0.1)
-            if neg + neu + pos > 0:
+            if neg+neu+pos > 0:
                 emotion_df = pd.DataFrame({
                     "Category": ["Negative", "Neutral", "Positive"],
                     "Count": [neg, neu, pos]
@@ -513,8 +564,8 @@ with tabs[4]:
         </div>
         """, unsafe_allow_html=True)
 
-# ════ TAB 6: CODEBASE ═════════════════════════════════════════════════════════
-with tabs[5]:
+# ════ TAB 7: CODEBASE ═════════════════════════════════════════════════════════
+with tabs[6]:
     st.markdown('<div class="page-hd"><div class="page-title">Codebase</div><div class="page-sub">read-only introspection · semantic search</div></div>', unsafe_allow_html=True)
     col1, col2 = st.columns([2,1], gap="large")
     with col1:
@@ -551,8 +602,8 @@ with tabs[5]:
             else:
                 st.caption("No results.")
 
-# ════ TAB 7: KNOWLEDGE GRAPH ═════════════════════════════════════════════════
-with tabs[6]:
+# ════ TAB 8: KNOWLEDGE GRAPH ═════════════════════════════════════════════════
+with tabs[7]:
     st.markdown('<div class="page-hd"><div class="page-title">Knowledge Graph</div><div class="page-sub">nodes & relationships · Supabase</div></div>', unsafe_allow_html=True)
     if st.button("🔍 Load Graph", use_container_width=True):
         with st.spinner("Fetching graph..."):
@@ -575,8 +626,8 @@ with tabs[6]:
             else:
                 st.info("No nodes yet. Have a conversation first!")
 
-# ════ TAB 8: ABOUT ═══════════════════════════════════════════════════════════
-with tabs[7]:
+# ════ TAB 9: ABOUT ═══════════════════════════════════════════════════════════
+with tabs[8]:
     st.markdown('<div class="page-hd"><div class="page-title">About Smriti‑001</div><div class="page-sub">a persistent digital organism</div></div>', unsafe_allow_html=True)
     st.markdown("""
     <div class="sec-head">What is Smriti‑001?</div>
