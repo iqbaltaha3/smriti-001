@@ -1,121 +1,70 @@
 """
-tools/web_search.py – AI‑powered web search using Tavily.
-Falls back to DuckDuckGo + Wikipedia if no API key is set.
+tools/web_search.py – Tavily-powered web search with Wikipedia fallback.
 """
-import os
-import requests
-
-import streamlit as st
-st.write("TAVILY_KEY present:", bool(os.getenv("TAVILY_API_KEY")))
+import os, requests, wikipedia
 
 TAVILY_URL = "https://api.tavily.com/search"
 
 DISCOVERY_QUERIES = [
-    "latest breakthroughs in AI language models",
+    "latest breakthroughs in AI language models 2025",
     "new memory architectures for AI agents",
     "open source LLM tools released recently",
-    "latest agent memory systems research",
+    "agent memory systems research 2025",
     "new Python AI frameworks",
-    "latest vector database advances",
-    "living like a digital organism"
+    "vector database advances",
 ]
 
-
 def search(query: str) -> list[dict]:
-    """
-    Search the web using Tavily.
-    Returns list of {title, text, url} dicts.
-    """
+    """Search using Tavily if key is set, otherwise fall back to Wikipedia."""
     api_key = os.getenv("TAVILY_API_KEY")
-    if not api_key:
-        # Fallback to DuckDuckGo + Wikipedia (existing logic)
-        return _search_fallback(query)
+    if api_key:
+        try:
+            resp = requests.post(
+                TAVILY_URL,
+                headers={"Content-Type": "application/json"},
+                json={
+                    "api_key": api_key,
+                    "query": query,
+                    "search_depth": "basic",
+                    "include_answer": True,
+                    "max_results": 5,
+                },
+                timeout=15,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            results = []
+            if data.get("answer"):
+                results.append({"title": "Answer", "text": data["answer"], "url": ""})
+            for r in data.get("results", []):
+                results.append({"title": r.get("title",""), "text": r.get("content",""), "url": r.get("url","")})
+            if results:
+                return results
+        except Exception:
+            pass   # fall through to Wikipedia
 
+    # Wikipedia fallback – works for factual questions without any API key
     try:
-        resp = requests.post(
-            TAVILY_URL,
-            headers={"Content-Type": "application/json"},
-            json={
-                "api_key": api_key,
-                "query": query,
-                "search_depth": "basic",       # "basic" for speed, "advanced" for depth
-                "include_answer": True,        # Tavily returns a direct answer if possible
-                "max_results": 5,
-            },
-            timeout=15,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-
-        results = []
-
-        # Tavily's direct answer (if available)
-        if data.get("answer"):
-            results.append({
-                "title": "Answer",
-                "text": data["answer"],
-                "url": "",
-            })
-
-        # Search results
-        for r in data.get("results", [])[:4]:
-            results.append({
-                "title": r.get("title", ""),
-                "text": r.get("content", ""),
-                "url": r.get("url", ""),
-            })
-
-        return results
-
-    except Exception:
-        return _search_fallback(query)
-
-
-def _search_fallback(query: str) -> list[dict]:
-    """Original DuckDuckGo + Wikipedia fallback."""
-    import json
-    import urllib.request
-    import urllib.parse
-
-    DDG_URL = "https://api.duckduckgo.com/"
-
-    # DuckDuckGo
-    try:
-        params = urllib.parse.urlencode({
-            "q": query,
-            "format": "json",
-            "no_html": "1",
-            "skip_disambig": "1",
-        })
-        with urllib.request.urlopen(f"{DDG_URL}?{params}", timeout=10) as r:
-            data = json.loads(r.read())
-        results = []
-        if data.get("AbstractText"):
-            results.append({
-                "title": data.get("Heading", query),
-                "text": data["AbstractText"],
-                "url": data.get("AbstractURL", ""),
-            })
-        for topic in data.get("RelatedTopics", [])[:5]:
-            if isinstance(topic, dict) and topic.get("Text"):
-                results.append({
-                    "title": topic["Text"][:60],
-                    "text": topic["Text"],
-                    "url": topic.get("FirstURL", ""),
-                })
-        if results:
-            return results
+        clean = query.lower()
+        for w in ["who is","what is","where is","when did","current","latest","today"]:
+            clean = clean.replace(w,"")
+        clean = clean.strip().rstrip("?")
+        # Search Wikipedia for the best matching article
+        titles = wikipedia.search(clean, results=3)
+        for title in titles:
+            try:
+                summary = wikipedia.summary(title, sentences=2, auto_suggest=False)
+                return [{"title": f"Wikipedia: {title}", "text": summary, "url": f"https://en.wikipedia.org/wiki/{title.replace(' ','_')}"}]
+            except wikipedia.exceptions.DisambiguationError as e:
+                if e.options:
+                    try:
+                        summary = wikipedia.summary(e.options[0], sentences=2, auto_suggest=False)
+                        return [{"title": f"Wikipedia: {e.options[0]}", "text": summary, "url": ""}]
+                    except Exception:
+                        continue
+            except Exception:
+                continue
     except Exception:
         pass
 
-    # Wikipedia fallback
-    try:
-        import wikipedia
-        clean = query.lower()
-        for w in ["who is", "what is", "where is", "when did", "current", "latest", "today"]:
-            clean = clean.replace(w, "")
-        clean = clean.strip().rstrip("?")
-        summary = wikipedia.summary(clean, sentences=2, auto_suggest=True)
-        return [{"title": f"Wikipedia: {clean}", "text": summary, "url": ""}]
-    except Exception:
-        return []
+    return []   # genuinely nothing found
