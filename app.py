@@ -366,18 +366,16 @@ with tabs[1]:
               <div style="font-size:12px;color:#8A9180">{w['impact']}</div>
             </div>""", unsafe_allow_html=True)
 
-# ════ TAB 3: MEMORY (redesigned) ═════════════════════════════════════════════
+# ════ TAB 3: MEMORY (dropdowns, professional) ═════════════════════════════════
 with tabs[2]:
     # ── Memory Overview Metrics ──
     st.markdown('<div class="sec-head">Memory Overview</div>', unsafe_allow_html=True)
     m1, m2, m3, m4 = st.columns(4)
-    episodes = cached_episodes(100)           # fetch all for avg calc
-    facts = cached_facts(100)
     total_ep = count_episodes()
     total_facts = count_facts()
-    avg_importance = round(sum(e.importance for e in episodes[:50]) / max(1, len(episodes[:50])), 1) if episodes else 0
-    # current mood (average valence of last 5 episodes)
-    recent_5 = episodes[:5]
+    episodes_all = cached_episodes(100)
+    avg_importance = round(sum(e.importance for e in episodes_all[:50]) / max(1, len(episodes_all[:50])), 1) if episodes_all else 0
+    recent_5 = episodes_all[:5]
     avg_val = round(sum(e.valence for e in recent_5) / max(1, len(recent_5)), 2)
     mood_label = "😊 positive" if avg_val > 0.1 else "😐 neutral" if avg_val > -0.1 else "😟 negative"
 
@@ -388,98 +386,97 @@ with tabs[2]:
 
     st.markdown("<hr style='margin: 24px 0 16px 0; border-color:#C8C4B0;'>", unsafe_allow_html=True)
 
-    # ── Episodic Memory ──
-    st.markdown('<div class="sec-head">📖 Episodic Memory</div>', unsafe_allow_html=True)
-    episodes = cached_episodes(20)
-    if episodes:
-        for ep in episodes:
-            # Build a visual importance bar
-            imp = ep.importance
-            bar = f'<span style="display:inline-block;width:{imp*10}%;height:6px;background:#3D4A2E;border-radius:3px;"></span>' \
-                  f'<span style="display:inline-block;width:{(10-imp)*10}%;height:6px;background:#E8E6DE;border-radius:3px;"></span>'
-            color = "#3D4A2E" if ep.valence > 0.1 else "#8A9180" if ep.valence > -0.1 else "#B85C3A"
-            st.markdown(f"""
-            <div style="border:1px solid #E8E6DE; border-radius:4px; padding:12px 14px; margin-bottom:10px; background:#FBFBF8;">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <div style="font-size:12px; color:#8A9180; font-family:'IBM Plex Mono',monospace;">{ep.timestamp[:10]}</div>
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <div style="width:80px; height:6px; display:flex; border-radius:3px; overflow:hidden;">{bar}</div>
-                        <span style="font-size:11px; color:#3D4A2E; font-weight:500;">{imp}/10</span>
-                        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:{color};"></span>
+    # ── Episodic Memory (Dropdown) ──
+    with st.expander("📖 Episodic Memory — what happened", expanded=False):
+        episodes = cached_episodes(30)
+        if episodes:
+            for ep in episodes:
+                imp = ep.importance
+                # visual importance bar
+                imp_bar = f'<span style="display:inline-block;width:{imp*10}%;height:6px;background:#3D4A2E;border-radius:3px;"></span>' \
+                          f'<span style="display:inline-block;width:{(10-imp)*10}%;height:6px;background:#E8E6DE;border-radius:3px;"></span>'
+                color = "#3D4A2E" if ep.valence > 0.1 else "#8A9180" if ep.valence > -0.1 else "#B85C3A"
+                st.markdown(f"""
+                <div style="border:1px solid #E8E6DE; border-radius:4px; padding:12px 14px; margin-bottom:10px; background:#FBFBF8;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div style="font-size:12px; color:#8A9180; font-family:'IBM Plex Mono',monospace;">{ep.timestamp[:10]}</div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <div style="width:80px; height:6px; display:flex; border-radius:3px; overflow:hidden;">{imp_bar}</div>
+                            <span style="font-size:11px; color:#3D4A2E; font-weight:500;">{imp}/10</span>
+                            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:{color};"></span>
+                        </div>
+                    </div>
+                    <div style="font-size:13px; color:#2A2E20; margin:8px 0 4px; line-height:1.5;">{ep.event[:200]}</div>
+                    <div style="font-size:10px; color:#8A9180; font-family:'IBM Plex Mono',monospace;">{ep.tags}</div>
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.info("No episodic memories yet.")
+
+    # ── Semantic Memory (Dropdown) ──
+    with st.expander("🧠 Semantic Memory — what I know", expanded=False):
+        facts = cached_facts(30)
+        if facts:
+            for f in facts:
+                conf = f.confidence
+                conf_bar = f'<span style="display:inline-block;width:{conf*10}%;height:4px;background:#3D4A2E;border-radius:2px;"></span>' \
+                           f'<span style="display:inline-block;width:{(10-conf)*10}%;height:4px;background:#E8E6DE;border-radius:2px;"></span>'
+                color = "#3D4A2E" if f.valence > 0.1 else "#8A9180" if f.valence > -0.1 else "#B85C3A"
+                st.markdown(f"""
+                <div style="border:1px solid #E8E6DE; border-radius:4px; padding:12px 14px; margin-bottom:10px; background:#FBFBF8;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div style="font-size:11px; color:#8A9180; font-family:'IBM Plex Mono',monospace;">{f.timestamp[:10]} · {f.category}</div>
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <div style="width:60px; height:4px; display:flex; border-radius:2px; overflow:hidden;">{conf_bar}</div>
+                            <span style="font-size:10px; color:#3D4A2E;">{conf}/10</span>
+                            <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:{color};"></span>
+                        </div>
+                    </div>
+                    <div style="font-size:13px; color:#2A2E20; margin:6px 0 4px; line-height:1.5;">{f.fact[:200]}</div>
+                    <div style="font-size:10px; color:#8A9180; font-family:'IBM Plex Mono',monospace;">source: {f.source[:60]}</div>
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.info("No facts extracted yet.")
+
+    # ── Procedural Memory (Dropdown) ──
+    with st.expander("⚙️ Procedural Memory — learned skills", expanded=False):
+        procedures = cached_procedures()
+        if procedures:
+            for proc in procedures:
+                total = proc.success_count + proc.failure_count
+                sr = f"{proc.success_count}/{total}" if total > 0 else "unused"
+                active_icon = "✅" if proc.is_active else "❌"
+                st.markdown(f"""
+                <div style="border:1px solid #E8E6DE; border-radius:4px; padding:12px 14px; margin-bottom:10px; background:#FBFBF8;">
+                    <div style="font-size:13px; font-weight:500; color:#2A2E20;">{active_icon} {proc.name}</div>
+                    <div style="font-size:12px; color:#2A2E20; margin-top:4px;"><em>Trigger:</em> {proc.trigger[:150]}</div>
+                    <div style="font-size:12px; color:#2A2E20;"><em>Steps:</em> {proc.steps[:200]}</div>
+                    <div style="font-size:10px; color:#8A9180; margin-top:4px;">Success: {sr} · Last used: {proc.last_used[:10]}</div>
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.info("No procedures learned yet.")
+
+    # ── Life Milestones (Dropdown) ──
+    with st.expander("📅 Life Milestones — key events", expanded=False):
+        timeline = cached_timeline()
+        if timeline:
+            for event in reversed(timeline[-15:]):
+                icon = {"birth":"○","capability":"◈","reflection":"◉","inspection":"◎","discovery":"◌"}.get(event.event_type,"·")
+                st.markdown(f"""
+                <div style="display:flex; gap:16px; padding:10px 0; border-bottom:1px solid #E8E6DE; align-items:flex-start;">
+                    <div style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:#8A9180; min-width:80px;">{event.timestamp[:10]}</div>
+                    <div style="font-family:'IBM Plex Mono',monospace; font-size:9px; text-transform:uppercase; color:#B8B4A0; min-width:70px;">{event.event_type}</div>
+                    <div>
+                        <div style="font-size:13px; font-weight:500; color:#2A2E20;">{icon} {event.title}</div>
+                        {f'<div style="font-size:12px; color:#8A9180;">{event.description}</div>' if event.description else ''}
                     </div>
                 </div>
-                <div style="font-size:13px; color:#2A2E20; margin:8px 0 4px; line-height:1.5;">{ep.event[:200]}</div>
-                <div style="font-size:10px; color:#8A9180; font-family:'IBM Plex Mono',monospace;">{ep.tags}</div>
-            </div>
-            """, unsafe_allow_html=True)
-    else:
-        st.markdown('<div class="empty">No episodes yet.</div>', unsafe_allow_html=True)
-
-    st.markdown("<hr style='margin: 24px 0 16px 0; border-color:#C8C4B0;'>", unsafe_allow_html=True)
-
-    # ── Semantic Memory ──
-    st.markdown('<div class="sec-head">🧠 Semantic Memory</div>', unsafe_allow_html=True)
-    facts = cached_facts(20)
-    if facts:
-        for f in facts:
-            conf = f.confidence
-            conf_bar = f'<span style="display:inline-block;width:{conf*10}%;height:4px;background:#3D4A2E;border-radius:2px;"></span>' \
-                       f'<span style="display:inline-block;width:{(10-conf)*10}%;height:4px;background:#E8E6DE;border-radius:2px;"></span>'
-            color = "#3D4A2E" if f.valence > 0.1 else "#8A9180" if f.valence > -0.1 else "#B85C3A"
-            st.markdown(f"""
-            <div style="border:1px solid #E8E6DE; border-radius:4px; padding:12px 14px; margin-bottom:10px; background:#FBFBF8;">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <div style="font-size:11px; color:#8A9180; font-family:'IBM Plex Mono',monospace;">{f.timestamp[:10]} · {f.category}</div>
-                    <div style="display:flex; align-items:center; gap:6px;">
-                        <div style="width:60px; height:4px; display:flex; border-radius:2px; overflow:hidden;">{conf_bar}</div>
-                        <span style="font-size:10px; color:#3D4A2E;">{conf}/10</span>
-                        <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:{color};"></span>
-                    </div>
-                </div>
-                <div style="font-size:13px; color:#2A2E20; margin:6px 0 4px; line-height:1.5;">{f.fact[:200]}</div>
-                <div style="font-size:10px; color:#8A9180; font-family:'IBM Plex Mono',monospace;">source: {f.source[:60]}</div>
-            </div>
-            """, unsafe_allow_html=True)
-    else:
-        st.markdown('<div class="empty">No facts extracted yet.</div>', unsafe_allow_html=True)
-
-    st.markdown("<hr style='margin: 24px 0 16px 0; border-color:#C8C4B0;'>", unsafe_allow_html=True)
-
-    # ── Procedural Memory ──
-    st.markdown('<div class="sec-head">⚙️ Procedural Memory</div>', unsafe_allow_html=True)
-    procedures = cached_procedures()
-    if procedures:
-        for proc in procedures:
-            total = proc.success_count + proc.failure_count
-            sr = f"{proc.success_count}/{total}" if total > 0 else "unused"
-            active_icon = "✅" if proc.is_active else "❌"
-            with st.expander(f"{active_icon} {proc.name}"):
-                st.markdown(f"**Trigger:** {proc.trigger}")
-                st.markdown(f"**Steps:** {proc.steps}")
-                st.markdown(f"**Success:** {sr} · **Last used:** {proc.last_used[:10]}")
-    else:
-        st.markdown('<div class="empty">No procedures learned yet.</div>', unsafe_allow_html=True)
-
-    st.markdown("<hr style='margin: 24px 0 16px 0; border-color:#C8C4B0;'>", unsafe_allow_html=True)
-
-    # ── Life Milestones ──
-    st.markdown('<div class="sec-head">📅 Life Milestones</div>', unsafe_allow_html=True)
-    timeline = cached_timeline()
-    if timeline:
-        for event in reversed(timeline[-10:]):
-            icon = {"birth":"○","capability":"◈","reflection":"◉","inspection":"◎","discovery":"◌"}.get(event.event_type,"·")
-            st.markdown(f"""
-            <div style="display:flex; gap:16px; padding:10px 0; border-bottom:1px solid #E8E6DE; align-items:flex-start;">
-                <div style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:#8A9180; min-width:80px;">{event.timestamp[:10]}</div>
-                <div style="font-family:'IBM Plex Mono',monospace; font-size:9px; text-transform:uppercase; color:#B8B4A0; min-width:70px;">{event.event_type}</div>
-                <div>
-                    <div style="font-size:13px; font-weight:500; color:#2A2E20;">{icon} {event.title}</div>
-                    {f'<div style="font-size:12px; color:#8A9180;">{event.description}</div>' if event.description else ''}
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-    else:
-        st.markdown('<div class="empty">No milestones yet.</div>', unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
+        else:
+            st.info("No milestones yet.")
+        
 # ════ TAB 4: REFLECTIONS (dedicated) ═════════════════════════════════════════
 with tabs[3]:
     st.markdown('<div class="sec-head">Reflection Journal</div>', unsafe_allow_html=True)
