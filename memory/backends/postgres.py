@@ -16,9 +16,8 @@ _pool = None
 def _get_pool():
     global _pool
     if _pool is None:
-        # Read connection parameters individually (no DSN parsing issues)
         host = os.getenv("DB_HOST")
-        port = int(os.getenv("DB_PORT", "6543"))
+        port = int(os.getenv("DB_PORT", "5432"))
         dbname = os.getenv("DB_NAME", "postgres")
         user = os.getenv("DB_USER")
         password = os.getenv("DB_PASSWORD")
@@ -29,6 +28,7 @@ def _get_pool():
                 "Please set DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD in .env"
             )
 
+        # Add connection timeout and keepalive settings for cloud
         _pool = psycopg2.pool.SimpleConnectionPool(
             1, 10,
             host=host,
@@ -36,7 +36,12 @@ def _get_pool():
             dbname=dbname,
             user=user,
             password=password,
-            sslmode='require'
+            sslmode='require',
+            connect_timeout=10,
+            keepalives=1,
+            keepalives_idle=30,
+            keepalives_interval=10,
+            keepalives_count=5
         )
     return _pool
 
