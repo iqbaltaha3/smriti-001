@@ -1,6 +1,6 @@
 """
-Agent 7: Knowledge Graph Maintainer.
-Uses Supabase PostgreSQL to store nodes and edges, and provides semantic search.
+agents/graph_agent.py — Agent 7: Knowledge Graph Maintainer.
+Fixed: reuses database connections to avoid pool exhaustion on cloud.
 """
 import json
 from tools.embedder import embed
@@ -15,11 +15,10 @@ from memory import (
 def after_episode_added(episode_id: int, embedding_list: list, importance: int,
                         valence: float, tags: str, human_name: str):
     """Create an Episode node in the knowledge graph."""
-    node_id = add_knowledge_node(
+    add_knowledge_node(
         "Episode", episode_id,
         {"importance": importance, "valence": valence, "tags": tags}
     )
-    # For now we skip linking Human node; can be added later.
 
 
 def after_fact_added(fact_id: int, embedding_list: list, confidence: int,
@@ -31,6 +30,7 @@ def after_fact_added(fact_id: int, embedding_list: list, confidence: int,
     )
     if source_episode_id is not None:
         # Find the Episode node by type + ref_id and create a CONTAINS edge
+        # Use a direct SQL query with the same connection pattern as the rest of the app
         from memory.backends.postgres import _get_conn, _put_conn
         conn = _get_conn()
         try:
@@ -41,7 +41,13 @@ def after_fact_added(fact_id: int, embedding_list: list, confidence: int,
                 )
                 row = cur.fetchone()
                 if row:
-                    add_knowledge_edge(row[0], fact_node_id, "CONTAINS")
+                    # Now add the edge within the same connection session
+                    cur.execute(
+                        "INSERT INTO knowledge_edges (source_node_id, target_node_id, relationship) "
+                        "VALUES (%s, %s, %s)",
+                        (row[0], fact_node_id, "CONTAINS")
+                    )
+                    conn.commit()
         finally:
             _put_conn(conn)
 
