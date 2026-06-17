@@ -5,6 +5,9 @@ Falls back to DuckDuckGo + Wikipedia if no API key is set.
 import os
 import requests
 
+import streamlit as st
+st.write("TAVILY_KEY present:", bool(os.getenv("TAVILY_API_KEY")))
+
 TAVILY_URL = "https://api.tavily.com/search"
 
 DISCOVERY_QUERIES = [
