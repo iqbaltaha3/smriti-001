@@ -8,12 +8,13 @@ import requests
 TAVILY_URL = "https://api.tavily.com/search"
 
 DISCOVERY_QUERIES = [
-    "latest breakthroughs in AI language models 2025",
+    "latest breakthroughs in AI language models",
     "new memory architectures for AI agents",
     "open source LLM tools released recently",
-    "agent memory systems research 2025",
+    "latest agent memory systems research",
     "new Python AI frameworks",
-    "vector database advances",
+    "latest vector database advances",
+    "living like a digital organism"
 ]
 
 
