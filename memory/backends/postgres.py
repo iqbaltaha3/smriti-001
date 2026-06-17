@@ -16,8 +16,9 @@ _pool = None
 def _get_pool():
     global _pool
     if _pool is None:
+        # Build a connection string – often more stable on cloud
         host = os.getenv("DB_HOST")
-        port = int(os.getenv("DB_PORT", "5432"))
+        port = os.getenv("DB_PORT", "5432")
         dbname = os.getenv("DB_NAME", "postgres")
         user = os.getenv("DB_USER")
         password = os.getenv("DB_PASSWORD")
@@ -25,24 +26,11 @@ def _get_pool():
         if not all([host, user, password]):
             raise RuntimeError(
                 "Missing database connection environment variables. "
-                "Please set DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD in .env"
+                "Please set DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD"
             )
 
-        # Add connection timeout and keepalive settings for cloud
-        _pool = psycopg2.pool.SimpleConnectionPool(
-            1, 10,
-            host=host,
-            port=port,
-            dbname=dbname,
-            user=user,
-            password=password,
-            sslmode='require',
-            connect_timeout=10,
-            keepalives=1,
-            keepalives_idle=30,
-            keepalives_interval=10,
-            keepalives_count=5
-        )
+        dsn = f"host={host} port={port} dbname={dbname} user={user} password={password} sslmode=require connect_timeout=10"
+        _pool = psycopg2.pool.SimpleConnectionPool(1, 10, dsn)
     return _pool
 
 def _get_conn():
