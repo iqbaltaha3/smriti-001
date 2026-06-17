@@ -105,7 +105,7 @@ def _get_relevant_context(user_msg: str) -> str:
     if not episodes:
         return ""
 
-    lines = ["[RELEVANT PAST MEMORIES (graph+vector):]"]
+    lines = ["Additional context from past conversations:"]
     for ep in episodes:
         lines.append(f"- [{ep.importance}/10] {ep.event[:120]}")
     return "\n".join(lines)
@@ -148,7 +148,7 @@ def _do_search(query: str, source_label: str) -> str:
     for r in results[:3]:
         extract_and_store(r["text"], source=f"web_search:{r['url']}")
 
-    lines = ["[WEB SEARCH RESULTS:]"]
+    lines = ["Recent information from the internet:"]
     for r in results[:3]:
         lines.append(f"- {r['text'][:200]}")
     return "\n".join(lines)
@@ -172,7 +172,7 @@ def _get_code_context(user_msg: str) -> str:
     if not results:
         return ""
 
-    lines = ["[RELEVANT CODE FILES FROM MY OWN CODEBASE:]"]
+    lines = ["Relevant parts of my own source code:"]
     for cf in results:
         snippet = cf.content[:300].replace("\n", " ")
         lines.append(
