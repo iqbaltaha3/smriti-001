@@ -32,16 +32,15 @@ def ask_llm(system: str, user: str, temperature: float = 0.7) -> str:
                 )
                 if resp.status_code == 429:
                     wait = RETRY_DELAY * attempt
-                    print(f"Groq rate limit (attempt {attempt}). Waiting {wait}s...")
                     time.sleep(wait)
                     continue
                 resp.raise_for_status()
                 return resp.json()["choices"][0]["message"]["content"].strip()
-            except requests.exceptions.HTTPError as e:
+            except requests.exceptions.HTTPError:
                 if resp.status_code == 429:
                     continue
-                raise RuntimeError(f"Groq API error: {e}") from e
-        raise RuntimeError("Groq rate limit exceeded after multiple retries.")
+                raise
+        raise RuntimeError("Groq rate limit exceeded after retries.")
 
     # Fallback to local Ollama
     OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
