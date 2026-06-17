@@ -30,7 +30,7 @@ def _get_pool():
             )
 
         dsn = f"host={host} port={port} dbname={dbname} user={user} password={password} sslmode=require connect_timeout=10"
-        _pool = psycopg2.pool.SimpleConnectionPool(1, 10, dsn)
+        _pool = psycopg2.pool.SimpleConnectionPool(1, 3, dsn)
     return _pool
 
 def _get_conn():
