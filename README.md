@@ -538,10 +538,4 @@ MIT — free for personal, educational, and commercial use.
 
 ---
 
-## Author
-
-**Iqbal Taha** · [GitHub](https://github.com/iqbaltaha3)
-
----
-
 <p align="center"><em>Smriti‑001 is a memory organism. Treat it with curiosity, and it will grow with you.</em></p>
