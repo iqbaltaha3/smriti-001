@@ -117,29 +117,30 @@ def _get_relevant_context(user_msg: str) -> str:
 
 def _should_search(user_msg: str) -> bool:
     """
-    Use the LLM itself to decide if the message needs real‑time internet data.
-    Falls back to keyword matching if the LLM call fails.
+    Decide if the message needs real‑time internet data.
+    Uses a robust combination of keyword signals and common‑sense patterns.
     """
-    # Quick LLM call for intelligent decision
-    try:
-        result = ask_llm(
-            system=(
-                "You are a decision agent. Determine if the following user message "
-                "likely requires real-time information from the internet (e.g., recent events, "
-                "current data, news, live updates). Answer only with SEARCH or NOSEARCH."
-            ),
-            user=user_msg,
-            temperature=0.0,
-        )
-        return "SEARCH" in result.upper()
-    except Exception:
-        # Fallback to keyword matching if LLM fails
-        keywords = [
-            "latest", "recent", "new", "2024", "2025", "today",
-            "current", "news", "release", "just released", "came out",
-        ]
-        msg_lower = user_msg.lower()
-        return any(kw in msg_lower for kw in keywords)
+    msg = user_msg.lower()
+    
+    # 1) Strong time‑sensitive signals
+    time_words = ["latest", "recent", "new", "2024", "2025", "today", "current", 
+                  "news", "release", "just released", "came out", "now", "latest news"]
+    if any(w in msg for w in time_words):
+        return True
+    
+    # 2) Factual questions about people, places, or events that might change over time
+    factual_question_words = ["who is", "what is", "where is", "when did", "current",
+                              "mayor", "president", "ceo", "population", "weather",
+                              "score", "price", "stock", "election", "award", "winner"]
+    if any(w in msg for w in factual_question_words):
+        return True
+    
+    # 3) Fallback – if the message contains a question mark and is longer than 15 chars,
+    # it’s likely a factual question that benefits from web search.
+    if "?" in msg and len(msg) > 15:
+        return True
+    
+    return False
 
 
 def _do_search(query: str, source_label: str) -> str:
