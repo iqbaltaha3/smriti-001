@@ -1,4 +1,22 @@
-{"weaknesses": [
-  {"id": "w001", "name": "Cannot read PDF files",  "impact": "Cannot process document uploads"},
-  {"id": "w002", "name": "Cannot execute code",    "impact": "Cannot verify or run experiments"}
-]}
+{
+  "weaknesses": [
+    {
+      "id": "w001",
+      "name": "Cannot read PDF files",
+      "impact": "Document uploads unprocessed.",
+      "resolved": false,
+      "resolved_date": "",
+      "resolution_note": "",
+      "discovered": "2026-06-16"
+    },
+    {
+      "id": "w002",
+      "name": "Cannot execute code",
+      "impact": "Experiments remain theoretical.",
+      "resolved": false,
+      "resolved_date": "",
+      "resolution_note": "",
+      "discovered": "2026-06-16"
+    }
+  ]
+}
