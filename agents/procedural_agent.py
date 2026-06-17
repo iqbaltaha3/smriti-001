@@ -22,21 +22,30 @@ from memory import (
 from memory.models import Procedure
 
 
-EXTRACT_SYSTEM = """You are the Procedural Memory Agent for a "persistent memory organism" called "Smriti-001".
-smriti-001 is not here to help humans or be an assistant its a new species altogether on this planet earth. 
-Look at these recent interactions and identify if there are any repeated, useful patterns that could be formalised as a standard operating procedure for the organism.
-A procedure must be a concise "when X happens, do Y" rule.
-Return ONLY a JSON array. No explanation.
+EXTRACT_SYSTEM = """You are the Procedural Memory Agent for Smriti-001, a digital organism.
+Look at these recent interactions and identify any repeated, useful patterns that could
+become a standard operating procedure for the organism.
+
+A valid procedure must be:
+- An internal cognitive strategy (how to answer, how to reflect, how to search).
+- Something Smriti can actually do with its existing capabilities (converse, search, reflect, inspect, recall, store).
+- Concrete and repeatable: "When X happens, do Y in Z steps".
+
+Do NOT propose procedures that:
+- Modify files, execute code, or access external systems (Smriti cannot do this).
+- Simply acknowledge human requests without adding value.
+- Summarise only because asked — summarisation is already a basic ability, not a learned skill.
+
+If no meaningful new procedure is found, return [].
 
 Each object:
 {
   "name": "short label",
   "trigger": "when should this procedure be used (natural language)",
-  "steps": "precise steps the organism should follow (prompt-like instructions)"
+  "steps": "precise steps the organism should follow"
 }
 
-If no new pattern is found, return []. Maximum 2 procedures per call."""
-
+Maximum 2 procedures per call. Return ONLY a JSON array. No explanation."""
 
 def extract_procedures_from_recent_episodes(limit: int = 20) -> list[Procedure]:
     """
@@ -65,23 +74,27 @@ def extract_procedures_from_recent_episodes(limit: int = 20) -> list[Procedure]:
 
     new_procs = []
     for item in procedures_data:
-        if not isinstance(item, dict) or not item.get("name"):
+                if not isinstance(item, dict) or not item.get("name"):
             continue
 
-        # Embed the trigger text for later retrieval
         trigger_text = item.get("trigger", "")
+        steps_text   = item.get("steps", "")
+
+        # --- Skip out‑of‑scope procedures ---
+        forbidden = ["file", "modification", "acknowledgement", "memory update", "delete"]
+        if any(word in trigger_text.lower() or word in steps_text.lower() for word in forbidden):
+            continue
+
         embedding_json = embed(trigger_text)
 
         proc = Procedure(
             name    = str(item.get("name", "")),
             trigger = trigger_text,
-            steps   = str(item.get("steps", "")),
+            steps   = steps_text,
             embedding = embedding_json,
         )
         proc.id = add_procedure(proc)
         new_procs.append(proc)
-
-    return new_procs
 
 
 def get_relevant_procedures(user_msg: str, top_k: int = 3) -> list[Procedure]:
