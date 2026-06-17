@@ -26,6 +26,7 @@ from agents.conversation_agent import chat
 from agents.reflection_agent   import run_reflection
 from agents.inspection_agent   import run_inspection
 from agents.code_introspection_agent import scan_and_index, list_all_files, get_file_content, search_codebase
+from agents.procedural_agent   import extract_procedures_from_recent_episodes   # <-- for button
 from scheduler.jobs            import start_scheduler, discover
 
 BASE = os.path.dirname(__file__)
@@ -45,7 +46,7 @@ def _age_days(birth_str):
         return (date.today() - date.fromisoformat(birth_str[:10])).days
     except: return 0
 
-# ── Cached data fetchers (avoid redundant DB calls) ──────────────────────────
+# ── Cached data fetchers ──────────────────────────────────────────────────────
 @st.cache_data(ttl=5)
 def cached_episodes(limit=40):
     return get_recent_episodes(limit)
@@ -227,17 +228,30 @@ with st.sidebar:
     st.markdown("<div style='padding:14px 20px;'>", unsafe_allow_html=True)
     human_name = st.text_input("Observer", value="Human", label_visibility="visible")
     st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
+
     col1, col2 = st.columns(2)
     if col1.button("Reflect", use_container_width=True):
         with st.spinner(""):
             run_reflection("manual")
-        st.cache_data.clear()   # clear caches so new reflection appears
+        st.cache_data.clear()
         st.rerun()
     if col2.button("Inspect", use_container_width=True):
         with st.spinner(""):
             run_inspection()
         st.cache_data.clear()
         st.rerun()
+
+    # Procedure extraction button (placed right after Reflect / Inspect)
+    if st.button("Extract Procedures", use_container_width=True):
+        with st.spinner("Extracting procedures from recent episodes..."):
+            new_procs = extract_procedures_from_recent_episodes(limit=30)
+        st.cache_data.clear()
+        if new_procs:
+            st.success(f"Extracted {len(new_procs)} new procedure(s).")
+        else:
+            st.info("No new procedures found.")
+        st.rerun()
+
     if st.button("Discover now", use_container_width=True):
         with st.spinner("Searching the web..."):
             discover()
@@ -266,7 +280,7 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# ── Tabs (redundancy removed: no separate Reflections or Timeline tabs) ─────────
+# ── Tabs ───────────────────────────────────────────────────────────────────────
 tabs = st.tabs(["converse", "identity", "memory", "inspection", "metrics", "codebase", "graph", "about"])
 
 # ════ TAB 1: CONVERSE ═════════════════════════════════════════════════════════
@@ -337,7 +351,7 @@ with tabs[1]:
               <div style="font-size:12px;color:#8A9180">{w['impact']}</div>
             </div>""", unsafe_allow_html=True)
 
-# ════ TAB 3: MEMORY (unified, no redundancy) ═════════════════════════════════
+# ════ TAB 3: MEMORY ═══════════════════════════════════════════════════════════
 with tabs[2]:
     st.markdown('<div class="sec-head">Memory Transparency — all stores visible</div>', unsafe_allow_html=True)
     with st.expander("📖 Episodic Memory", expanded=True):
@@ -471,10 +485,16 @@ with tabs[4]:
     with col2:
         st.markdown('<div class="sec-head">Fact Emotion Distribution</div>', unsafe_allow_html=True)
         if facts:
-            valences = [f.valence for f in facts if f.valence!=0.0]
-            if valences:
-                df_val = pd.DataFrame(valences, columns=["valence"])
-                st.bar_chart(df_val["valence"].value_counts(bins=5).sort_index(), height=250)
+            # Categorise facts into negative, neutral, positive
+            neg = sum(1 for f in facts if f.valence < -0.1)
+            neu = sum(1 for f in facts if -0.1 <= f.valence <= 0.1)
+            pos = sum(1 for f in facts if f.valence > 0.1)
+            if neg + neu + pos > 0:
+                emotion_df = pd.DataFrame({
+                    "Category": ["Negative", "Neutral", "Positive"],
+                    "Count": [neg, neu, pos]
+                })
+                st.bar_chart(emotion_df.set_index("Category"), height=250)
             else:
                 st.markdown('<div class="empty">No emotional facts.</div>', unsafe_allow_html=True)
         else:
