@@ -1,73 +1,117 @@
 """
-tools/web_search.py — Passive internet observation for Smriti-001.
-
-DESIGN PHILOSOPHY:
-  Smriti does NOT browse the internet autonomously or contact strangers.
-  She OBSERVES only — like a scientist watching through a window.
-  Results are stored as semantic memory (Facts) for reflection.
-
-USES:
-  - Conversation agent: answer questions requiring current info
-  - Scheduler: hourly/daily background discovery runs
-
-API: DuckDuckGo Instant Answer — completely free, no key required.
-     Returns structured JSON with abstract text and related topics.
+tools/web_search.py – AI‑powered web search using Tavily.
+Falls back to DuckDuckGo + Wikipedia if no API key is set.
 """
+import os
+import requests
 
-import json
-import urllib.request
-import urllib.parse
+TAVILY_URL = "https://api.tavily.com/search"
 
-DDG_URL = "https://api.duckduckgo.com/"
+DISCOVERY_QUERIES = [
+    "latest breakthroughs in AI language models 2025",
+    "new memory architectures for AI agents",
+    "open source LLM tools released recently",
+    "agent memory systems research 2025",
+    "new Python AI frameworks",
+    "vector database advances",
+]
 
 
 def search(query: str) -> list[dict]:
     """
-    Search DuckDuckGo. Returns list of {title, text, url} dicts.
-    Never raises — returns [] on any error so callers don't crash.
+    Search the web using Tavily.
+    Returns list of {title, text, url} dicts.
     """
+    api_key = os.getenv("TAVILY_API_KEY")
+    if not api_key:
+        # Fallback to DuckDuckGo + Wikipedia (existing logic)
+        return _search_fallback(query)
+
+    try:
+        resp = requests.post(
+            TAVILY_URL,
+            headers={"Content-Type": "application/json"},
+            json={
+                "api_key": api_key,
+                "query": query,
+                "search_depth": "basic",       # "basic" for speed, "advanced" for depth
+                "include_answer": True,        # Tavily returns a direct answer if possible
+                "max_results": 5,
+            },
+            timeout=15,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+
+        results = []
+
+        # Tavily's direct answer (if available)
+        if data.get("answer"):
+            results.append({
+                "title": "Answer",
+                "text": data["answer"],
+                "url": "",
+            })
+
+        # Search results
+        for r in data.get("results", [])[:4]:
+            results.append({
+                "title": r.get("title", ""),
+                "text": r.get("content", ""),
+                "url": r.get("url", ""),
+            })
+
+        return results
+
+    except Exception:
+        return _search_fallback(query)
+
+
+def _search_fallback(query: str) -> list[dict]:
+    """Original DuckDuckGo + Wikipedia fallback."""
+    import json
+    import urllib.request
+    import urllib.parse
+
+    DDG_URL = "https://api.duckduckgo.com/"
+
+    # DuckDuckGo
     try:
         params = urllib.parse.urlencode({
-            "q":            query,
-            "format":       "json",
-            "no_html":      "1",
+            "q": query,
+            "format": "json",
+            "no_html": "1",
             "skip_disambig": "1",
         })
         with urllib.request.urlopen(f"{DDG_URL}?{params}", timeout=10) as r:
             data = json.loads(r.read())
-
         results = []
-
-        # The main abstract (usually the best result)
         if data.get("AbstractText"):
             results.append({
                 "title": data.get("Heading", query),
-                "text":  data["AbstractText"],
-                "url":   data.get("AbstractURL", ""),
+                "text": data["AbstractText"],
+                "url": data.get("AbstractURL", ""),
             })
-
-        # Related topics (up to 5 more)
         for topic in data.get("RelatedTopics", [])[:5]:
             if isinstance(topic, dict) and topic.get("Text"):
                 results.append({
                     "title": topic["Text"][:60],
-                    "text":  topic["Text"],
-                    "url":   topic.get("FirstURL", ""),
+                    "text": topic["Text"],
+                    "url": topic.get("FirstURL", ""),
                 })
+        if results:
+            return results
+    except Exception:
+        pass
 
-        return results
-
-    except Exception as e:
-        # Never crash the caller — just return empty
-        return [{"title": "search_error", "text": str(e), "url": ""}]
-
-
-# ── Discovery queries — what Smriti searches during background runs ────────────
-DISCOVERY_QUERIES = [
-    "new AI language models 2025",
-    "new memory architectures AI agents",
-    "new open source LLM tools",
-    "agent memory systems research",
-    "new Python AI frameworks",
-    "vector database advances",
-]
+    # Wikipedia fallback
+    try:
+        import wikipedia
+        clean = query.lower()
+        for w in ["who is", "what is", "where is", "when did", "current", "latest", "today"]:
+            clean = clean.replace(w, "")
+        clean = clean.strip().rstrip("?")
+        summary = wikipedia.summary(clean, sentences=2, auto_suggest=True)
+        return [{"title": f"Wikipedia: {clean}", "text": summary, "url": ""}]
+    except Exception:
+        return []
