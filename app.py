@@ -1,5 +1,5 @@
 """
-app.py — Smriti-001 Streamlit Application (Cloud‑Native)
+app.py — Smriti-001 Streamlit Application (zero redundancy)
 Run with:  streamlit run app.py
 """
 import streamlit as st
@@ -31,7 +31,6 @@ from scheduler.jobs            import start_scheduler, discover
 BASE = os.path.dirname(__file__)
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
-
 def _load(rel):
     with open(os.path.join(BASE, rel)) as f:
         return json.load(f)
@@ -46,9 +45,32 @@ def _age_days(birth_str):
         return (date.today() - date.fromisoformat(birth_str[:10])).days
     except: return 0
 
+# ── Cached data fetchers (avoid redundant DB calls) ──────────────────────────
+@st.cache_data(ttl=5)
+def cached_episodes(limit=40):
+    return get_recent_episodes(limit)
+
+@st.cache_data(ttl=5)
+def cached_facts(limit=60):
+    return get_all_facts(limit)
+
+@st.cache_data(ttl=5)
+def cached_reflections(limit=10):
+    return get_recent_reflections(limit)
+
+@st.cache_data(ttl=5)
+def cached_procedures():
+    return get_all_procedures(active_only=False)
+
+@st.cache_data(ttl=5)
+def cached_timeline():
+    return get_timeline()
+
+@st.cache_data(ttl=5)
+def cached_inspections(limit=10):
+    return get_recent_inspections(limit)
 
 # ── Bootstrap ──────────────────────────────────────────────────────────────────
-
 def bootstrap():
     init_all()
     identity = _load("organism/identity.json")
@@ -65,12 +87,10 @@ def bootstrap():
 
 bootstrap()
 
-
 # ── Scheduler ──────────────────────────────────────────────────────────────────
 if "scheduler_started" not in st.session_state:
     st.session_state.scheduler = start_scheduler()
     st.session_state.scheduler_started = True
-
 
 # ── Page config & CSS ──────────────────────────────────────────────────────────
 st.set_page_config(page_title="Smriti-001", page_icon="○",
@@ -79,16 +99,13 @@ st.set_page_config(page_title="Smriti-001", page_icon="○",
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Mono:wght@300;400;500&family=Inter:wght@300;400;500&display=swap');
-
 *, *::before, *::after { box-sizing: border-box; }
 html, body, [class*="stApp"] { background:#F0EEE8 !important; color:#1C1C18 !important; }
 [class*="css"] { font-family:'Inter',sans-serif !important; }
 #MainMenu, footer, header { visibility:hidden; }
 [data-testid="stToolbar"] { display:none; }
-
 section[data-testid="stSidebar"] { background:#ECEAE2 !important; border-right:1px solid #C8C4B0 !important; }
 section[data-testid="stSidebar"] * { color:#1C1C18 !important; }
-
 [data-testid="stTabs"] [role="tablist"] { background:transparent; border-bottom:1px solid #C8C4B0; }
 [data-testid="stTabs"] [role="tab"] {
     background:transparent !important; border:none !important;
@@ -98,7 +115,6 @@ section[data-testid="stSidebar"] * { color:#1C1C18 !important; }
     letter-spacing:0.08em !important; padding:10px 16px !important; margin:0 !important;
 }
 [data-testid="stTabs"] [role="tab"][aria-selected="true"] { color:#3D4A2E !important; border-bottom:2px solid #3D4A2E !important; }
-
 [data-testid="stTextInput"] input,
 [data-testid="stTextArea"] textarea,
 [data-testid="stChatInput"] textarea {
@@ -107,7 +123,6 @@ section[data-testid="stSidebar"] * { color:#1C1C18 !important; }
     font-family:'Inter',sans-serif !important; font-size:14px !important;
 }
 [data-testid="stChatInput"] { border-top:1px solid #C8C4B0 !important; background:#F0EEE8 !important; }
-
 [data-testid="stButton"] button {
     background:transparent !important; border:1px solid #C8C4B0 !important;
     border-radius:2px !important; color:#3D4A2E !important;
@@ -117,10 +132,8 @@ section[data-testid="stSidebar"] * { color:#1C1C18 !important; }
 }
 [data-testid="stButton"] button:hover { background:#3D4A2E !important; color:#F0EEE8 !important; }
 [data-testid="stButton"] button[kind="primary"] { background:#3D4A2E !important; color:#F0EEE8 !important; }
-
 [data-testid="stExpander"] { border:1px solid #C8C4B0 !important; border-radius:0 !important; background:transparent !important; }
 hr { border-color:#C8C4B0 !important; }
-
 /* Custom components */
 .org-name { font-family:'DM Serif Display',serif; font-size:22px; color:#1C1C18; margin:0 0 2px; }
 .org-meta  { font-family:'IBM Plex Mono',monospace; font-size:10px; color:#8A9180; text-transform:uppercase; letter-spacing:0.08em; }
@@ -160,7 +173,6 @@ hr { border-color:#C8C4B0 !important; }
 </style>
 """, unsafe_allow_html=True)
 
-
 # ── Load identity ──────────────────────────────────────────────────────────────
 identity = _load("organism/identity.json")
 caps     = _load("organism/capabilities.json")
@@ -170,10 +182,8 @@ wk       = _load("organism/weaknesses.json")
 now_str  = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
 age      = _age_days(identity.get("birth_date"))
 
-
 # ── Sidebar ────────────────────────────────────────────────────────────────────
 with st.sidebar:
-    # Breathing cell SVG
     st.markdown("""
     <div class="cell-wrap">
       <svg width="68" height="68" viewBox="0 0 68 68">
@@ -216,25 +226,25 @@ with st.sidebar:
 
     st.markdown("<div style='padding:14px 20px;'>", unsafe_allow_html=True)
     human_name = st.text_input("Observer", value="Human", label_visibility="visible")
-
     st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
-
     col1, col2 = st.columns(2)
     if col1.button("Reflect", use_container_width=True):
         with st.spinner(""):
             run_reflection("manual")
+        st.cache_data.clear()   # clear caches so new reflection appears
         st.rerun()
     if col2.button("Inspect", use_container_width=True):
         with st.spinner(""):
             run_inspection()
+        st.cache_data.clear()
         st.rerun()
     if st.button("Discover now", use_container_width=True):
         with st.spinner("Searching the web..."):
             discover()
+        st.cache_data.clear()
         st.success("Discovery run complete")
         st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
-
 
 # ── Main header ────────────────────────────────────────────────────────────────
 st.markdown(f"""
@@ -245,6 +255,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # Stat strip
+procedures_count = len(cached_procedures())
 st.markdown(f"""
 <div class="stat-strip">
   <div class="stat-cell"><div class="stat-n">{age}</div><div class="stat-l">days alive</div></div>
@@ -255,16 +266,13 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-
-# ── Tabs ───────────────────────────────────────────────────────────────────────
-tabs = st.tabs(["converse", "identity", "memory", "reflections", "inspection", "timeline", "metrics", "codebase", "graph", "about"])
-
+# ── Tabs (redundancy removed: no separate Reflections or Timeline tabs) ─────────
+tabs = st.tabs(["converse", "identity", "memory", "inspection", "metrics", "codebase", "graph", "about"])
 
 # ════ TAB 1: CONVERSE ═════════════════════════════════════════════════════════
 with tabs[0]:
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
-
     if not st.session_state.chat_history:
         st.markdown('<div class="empty">Begin. Everything spoken becomes memory.</div>', unsafe_allow_html=True)
     else:
@@ -276,85 +284,69 @@ with tabs[0]:
               <div class="msg-author {role_class}">{author}</div>
               <div class="msg-body">{msg['content']}</div>
             </div>""", unsafe_allow_html=True)
-
     user_input = st.chat_input("Speak to Smriti...")
     if user_input:
         with st.spinner(""):
-            response = chat(
-                human_name = human_name,
-                human_msg  = user_input,
-                history    = st.session_state.chat_history,
-            )
-        st.session_state.chat_history.append({"role": "user",      "content": user_input})
-        st.session_state.chat_history.append({"role": "assistant", "content": response})
+            response = chat(human_name=human_name, human_msg=user_input,
+                            history=st.session_state.chat_history)
+        st.session_state.chat_history.append({"role":"user","content":user_input})
+        st.session_state.chat_history.append({"role":"assistant","content":response})
+        st.cache_data.clear()
         st.rerun()
-
     if st.session_state.chat_history:
         st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
         if st.button("Clear conversation"):
             st.session_state.chat_history = []
             st.rerun()
 
-
 # ════ TAB 2: IDENTITY ═════════════════════════════════════════════════════════
 with tabs[1]:
-    col1, col2 = st.columns([1, 1], gap="large")
-
+    col1, col2 = st.columns([1,1], gap="large")
     with col1:
         st.markdown('<div class="sec-head">Principles</div>', unsafe_allow_html=True)
-        for i, p in enumerate(genome["principles"], 1):
+        for p in genome["principles"]:
             st.markdown(f"""
-            <div style="display:flex;gap:12px;padding:9px 0;border-bottom:1px solid #E8E6DE;align-items:baseline">
-              <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#B8B4A0;min-width:20px">{str(i).zfill(2)}</span>
+            <div style="padding:9px 0;border-bottom:1px solid #E8E6DE">
               <span style="font-size:13px;color:#2A2E20;font-style:italic">{p}</span>
             </div>""", unsafe_allow_html=True)
-
         st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
         st.markdown('<div class="sec-head">Goals</div>', unsafe_allow_html=True)
         for g in goals["goals"]:
-            clr = "#5A4A2E" if g["priority"] == "high" else "#8A9180"
+            clr = "#5A4A2E" if g["priority"]=="high" else "#8A9180"
             st.markdown(f"""
-            <div style="display:flex;gap:12px;padding:9px 0;border-bottom:1px solid #E8E6DE;align-items:baseline">
-              <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;text-transform:uppercase;color:{clr};min-width:52px">{g['priority']}</span>
-              <span style="font-size:13px;color:#2A2E20">{g['goal']}</span>
+            <div style="padding:9px 0;border-bottom:1px solid #E8E6DE">
+              <span style="font-size:9px;text-transform:uppercase;color:{clr}">[{g['priority']}]</span>
+              <span style="font-size:13px;color:#2A2E20"> {g['goal']}</span>
             </div>""", unsafe_allow_html=True)
-
     with col2:
         st.markdown('<div class="sec-head">Capabilities</div>', unsafe_allow_html=True)
         for cap in caps["capabilities"]:
-            acq = cap.get("acquired","")[:10] if cap.get("acquired") else cap.get("source","—")
             st.markdown(f"""
-            <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #E8E6DE">
-              <div>
-                <div style="font-size:13px;font-weight:500;color:#2A2E20">{cap['name']}</div>
-                <div style="font-size:12px;color:#8A9180;line-height:1.5">{cap['description']}</div>
-              </div>
-              <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;text-transform:uppercase;border:1px solid #C8C4B0;color:#8A9180;padding:2px 7px;height:fit-content;white-space:nowrap;margin-top:2px">{acq}</div>
+            <div style="padding:10px 0;border-bottom:1px solid #E8E6DE">
+              <div style="font-size:13px;font-weight:500;color:#2A2E20">{cap['name']}</div>
+              <div style="font-size:12px;color:#8A9180">{cap['description']}</div>
             </div>""", unsafe_allow_html=True)
-
         st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
         st.markdown('<div class="sec-head">Weaknesses</div>', unsafe_allow_html=True)
         for w in wk["weaknesses"]:
+            resolved = w.get("resolved", False)
+            status = " (resolved)" if resolved else ""
             st.markdown(f"""
-            <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #E8E6DE">
-              <div>
-                <div style="font-size:13px;font-weight:500;color:#2A2E20">{w['name']}</div>
-                <div style="font-size:12px;color:#8A9180">{w['impact']}</div>
-              </div>
+            <div style="padding:10px 0;border-bottom:1px solid #E8E6DE">
+              <div style="font-size:13px;font-weight:500;color:#2A2E20">{w['name']}{status}</div>
+              <div style="font-size:12px;color:#8A9180">{w['impact']}</div>
             </div>""", unsafe_allow_html=True)
 
-
-# ════ TAB 3: MEMORY ═══════════════════════════════════════════════════════════
+# ════ TAB 3: MEMORY (unified, no redundancy) ═════════════════════════════════
 with tabs[2]:
     st.markdown('<div class="sec-head">Memory Transparency — all stores visible</div>', unsafe_allow_html=True)
-
-    with st.expander("📖 Episodic Memory — what happened", expanded=True):
-        episodes = get_recent_episodes(40)
+    with st.expander("📖 Episodic Memory", expanded=True):
+        episodes = cached_episodes(40)
         if episodes:
             for ep in episodes:
                 imp  = ep.importance
                 pips = "".join(f'<span style="display:inline-block;width:4px;height:10px;background:{"#3D4A2E" if i<imp else "#C8C4B0"};margin-right:1px"></span>' for i in range(10))
-                color = "#3D4A2E" if ep.valence > 0.1 else "#8A9180" if ep.valence > -0.1 else "#B85C3A"
+                color = "#3D4A2E" if ep.valence>0.1 else "#8A9180" if ep.valence>-0.1 else "#B85C3A"
                 st.markdown(f"""
                 <div class="mem-card">
                   <div class="mem-text">{ep.event[:180]}</div>
@@ -362,12 +354,11 @@ with tabs[2]:
                 </div>""", unsafe_allow_html=True)
         else:
             st.markdown('<div class="empty">No episodes yet.</div>', unsafe_allow_html=True)
-
-    with st.expander("🧠 Semantic Memory — what I know", expanded=True):
-        facts = get_all_facts(60)
+    with st.expander("🧠 Semantic Memory", expanded=True):
+        facts = cached_facts(60)
         if facts:
             for f in facts:
-                color = "#3D4A2E" if f.valence > 0.1 else "#8A9180" if f.valence > -0.1 else "#B85C3A"
+                color = "#3D4A2E" if f.valence>0.1 else "#8A9180" if f.valence>-0.1 else "#B85C3A"
                 st.markdown(f"""
                 <div class="mem-card">
                   <div class="mem-text">{f.fact[:200]}</div>
@@ -375,46 +366,38 @@ with tabs[2]:
                 </div>""", unsafe_allow_html=True)
         else:
             st.markdown('<div class="empty">No facts extracted yet.</div>', unsafe_allow_html=True)
-
-    with st.expander("🌙 Reflections — what I think about myself", expanded=False):
-        reflections = get_recent_reflections(10)
+    with st.expander("🌙 Reflections", expanded=False):
+        reflections = cached_reflections(10)
         if reflections:
             for ref in reflections:
                 with st.expander(f"{ref.timestamp[:16].replace('T',' ')} — {ref.trigger}"):
-                    if ref.learned:
-                        st.markdown(f"**Learned:** {ref.learned}")
-                    if ref.weakness_found:
-                        st.markdown(f"**Weakness:** {ref.weakness_found}")
-                    if ref.cap_requested:
-                        st.markdown(f"**Requested:** {ref.cap_requested}")
-                    p_label = "no violations" if ref.principles_ok else "⚠ violation detected"
-                    st.markdown(f"**Principles:** {p_label}")
+                    if ref.learned: st.markdown(f"**Learned:** {ref.learned}")
+                    if ref.weakness_found: st.markdown(f"**Weakness:** {ref.weakness_found}")
+                    if ref.cap_requested: st.markdown(f"**Requested:** {ref.cap_requested}")
+                    st.markdown(f"**Principles:** {'no violations' if ref.principles_ok else '⚠ violation detected'}")
                     st.divider()
                     st.markdown(ref.content)
         else:
             st.markdown('<div class="empty">No reflections yet. Click Reflect in the sidebar.</div>', unsafe_allow_html=True)
-
-    with st.expander("⚙️ Procedural Memory — learned skills", expanded=False):
-        procedures = get_all_procedures(active_only=False)
+    with st.expander("⚙️ Procedural Memory", expanded=False):
+        procedures = cached_procedures()
         if procedures:
             for proc in procedures:
                 total = proc.success_count + proc.failure_count
-                success_rate = f"{proc.success_count}/{total}" if total > 0 else "unused"
-                active_label = "✅ active" if proc.is_active else "❌ inactive"
+                success_rate = f"{proc.success_count}/{total}" if total>0 else "unused"
+                active = "✅ active" if proc.is_active else "❌ inactive"
                 st.markdown(f"""
                 <div class="mem-card">
-                  <div style="font-size:13px;font-weight:500;color:#2A2E20">{proc.name} <span style="font-size:10px;color:#8A9180">({active_label})</span></div>
-                  <div class="mem-text" style="margin-top:4px"><em>Trigger:</em> {proc.trigger[:120]}</div>
-                  <div class="mem-text"><em>Steps:</em> {proc.steps[:200]}</div>
+                  <div style="font-size:13px;font-weight:500;color:#2A2E20">{proc.name} <span style="font-size:10px;color:#8A9180">({active})</span></div>
+                  <div class="mem-text"><em>Trigger:</em> {proc.trigger[:120]}</div>
                   <div class="mem-meta">Success: {success_rate} · Last used: {proc.last_used[:10]}</div>
                 </div>""", unsafe_allow_html=True)
         else:
-            st.markdown('<div class="empty">No procedures learned yet. They will appear after nightly extraction.</div>', unsafe_allow_html=True)
-
-    with st.expander("📅 Life Milestones — last 5 events", expanded=False):
-        timeline = get_timeline()
+            st.markdown('<div class="empty">No procedures learned yet.</div>', unsafe_allow_html=True)
+    with st.expander("📅 Life Milestones", expanded=False):
+        timeline = cached_timeline()
         if timeline:
-            for event in timeline[-5:]:
+            for event in timeline[-10:]:
                 icon = {"birth":"○","capability":"◈","reflection":"◉","inspection":"◎","discovery":"◌"}.get(event.event_type,"·")
                 st.markdown(f"""
                 <div class="tl-item">
@@ -428,104 +411,36 @@ with tabs[2]:
         else:
             st.markdown('<div class="empty">No milestones yet.</div>', unsafe_allow_html=True)
 
-
-# ════ TAB 4: REFLECTIONS ══════════════════════════════════════════════════════
+# ════ TAB 4: INSPECTION ═══════════════════════════════════════════════════════
 with tabs[3]:
-    col1, col2 = st.columns([2, 1], gap="large")
-
-    with col1:
-        st.markdown('<div class="sec-head">Reflection journal</div>', unsafe_allow_html=True)
-        reflections = get_recent_reflections(20)
-        if reflections:
-            for ref in reflections:
-                with st.expander(f"{ref.timestamp[:16].replace('T',' ')} — {ref.trigger}"):
-                    if ref.learned:
-                        st.markdown(f"**Learned:** {ref.learned}")
-                    if ref.weakness_found:
-                        st.markdown(f"**Weakness:** {ref.weakness_found}")
-                    if ref.cap_requested:
-                        st.markdown(f"**Requested:** {ref.cap_requested}")
-                    p_label = "no violations" if ref.principles_ok else "⚠ violation detected"
-                    st.markdown(f"**Principles:** {p_label}")
-                    st.divider()
-                    st.markdown(ref.content)
-        else:
-            st.markdown('<div class="empty">No reflections yet. Click Reflect in the sidebar.</div>', unsafe_allow_html=True)
-
-    with col2:
-        st.markdown('<div class="sec-head">Trigger</div>', unsafe_allow_html=True)
-        st.markdown('<div style="font-size:12px;color:#8A9180;line-height:1.65;margin-bottom:14px">Reflection reads all 5 memory types and produces a journal entry. Runs automatically at 23:00 each night.</div>', unsafe_allow_html=True)
-        if st.button("Reflect now", type="primary", use_container_width=True):
-            with st.spinner(""):
-                run_reflection("manual")
-            st.rerun()
-
-
-# ════ TAB 5: INSPECTION ═══════════════════════════════════════════════════════
-with tabs[4]:
-    col1, col2 = st.columns([2, 1], gap="large")
-
-    with col1:
-        st.markdown('<div class="sec-head">System health inspections</div>', unsafe_allow_html=True)
-        inspections = get_recent_inspections(10)
-        if inspections:
-            for ins in inspections:
-                st.markdown(f"""
-                <div class="ins-card">
-                  <div class="ins-title">{ins.timestamp[:16].replace('T',' ')}</div>
-                  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px">
-                    <div><div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#8A9180">episodes</div><div style="font-size:14px;color:#3D4A2E">{ins.total_episodes}</div></div>
-                    <div><div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#8A9180">facts</div><div style="font-size:14px;color:#3D4A2E">{ins.total_facts}</div></div>
-                    <div><div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#8A9180">reflections</div><div style="font-size:14px;color:#3D4A2E">{ins.total_reflections}</div></div>
-                    <div><div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#8A9180">age</div><div style="font-size:14px;color:#3D4A2E">{ins.age_days}d</div></div>
-                  </div>
-                  <div class="ins-title">Bottlenecks</div>
-                  <div class="ins-val" style="margin-bottom:8px">{ins.bottlenecks or '—'}</div>
-                  <div class="ins-title">Recommendations</div>
-                  <div class="ins-val">{ins.recommendations or '—'}</div>
-                </div>""", unsafe_allow_html=True)
-        else:
-            st.markdown('<div class="empty">No inspections yet. Click Inspect in the sidebar.</div>', unsafe_allow_html=True)
-
-    with col2:
-        st.markdown('<div class="sec-head">Trigger</div>', unsafe_allow_html=True)
-        st.markdown('<div style="font-size:12px;color:#8A9180;line-height:1.65;margin-bottom:14px">Inspection reads all 5 databases, identifies bottlenecks, and generates recommendations. Runs automatically at 08:00 each morning.</div>', unsafe_allow_html=True)
-        if st.button("Inspect now", type="primary", use_container_width=True):
-            with st.spinner(""):
-                run_inspection()
-            st.rerun()
-
-
-# ════ TAB 6: TIMELINE ═════════════════════════════════════════════════════════
-with tabs[5]:
-    st.markdown('<div class="sec-head">Life events</div>', unsafe_allow_html=True)
-    timeline = get_timeline()
-    if timeline:
-        for event in timeline:
-            icon = {"birth":"○","capability":"◈","reflection":"◉","inspection":"◎","discovery":"◌"}.get(event.event_type,"·")
+    st.markdown('<div class="sec-head">System Health Inspections</div>', unsafe_allow_html=True)
+    inspections = cached_inspections(10)
+    if inspections:
+        for ins in inspections:
             st.markdown(f"""
-            <div class="tl-item">
-              <div class="tl-date">{event.timestamp[:10]}</div>
-              <div class="tl-type">{event.event_type}</div>
-              <div>
-                <div class="tl-title">{icon} {event.title}</div>
-                {f'<div class="tl-desc">{event.description}</div>' if event.description else ""}
+            <div class="ins-card">
+              <div class="ins-title">{ins.timestamp[:16].replace('T',' ')}</div>
+              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px">
+                <div><div style="font-size:9px;color:#8A9180">episodes</div><div style="font-size:14px;color:#3D4A2E">{ins.total_episodes}</div></div>
+                <div><div style="font-size:9px;color:#8A9180">facts</div><div style="font-size:14px;color:#3D4A2E">{ins.total_facts}</div></div>
+                <div><div style="font-size:9px;color:#8A9180">reflections</div><div style="font-size:14px;color:#3D4A2E">{ins.total_reflections}</div></div>
+                <div><div style="font-size:9px;color:#8A9180">age</div><div style="font-size:14px;color:#3D4A2E">{ins.age_days}d</div></div>
               </div>
+              <div class="ins-title">Bottlenecks</div>
+              <div class="ins-val" style="margin-bottom:8px">{ins.bottlenecks or '—'}</div>
+              <div class="ins-title">Recommendations</div>
+              <div class="ins-val">{ins.recommendations or '—'}</div>
             </div>""", unsafe_allow_html=True)
     else:
-        st.markdown('<div class="empty">Timeline begins when Smriti speaks for the first time.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="empty">No inspections yet. Click Inspect in the sidebar.</div>', unsafe_allow_html=True)
 
-
-# ════ TAB 7: METRICS ═════════════════════════════════════════════════════════
-with tabs[6]:
+# ════ TAB 5: METRICS ═════════════════════════════════════════════════════════
+with tabs[4]:
     st.markdown('<div class="page-hd"><div class="page-title">Metrics</div><div class="page-sub">emotional landscape · procedural memory · system health</div></div>', unsafe_allow_html=True)
-
-    recent_eps = get_recent_episodes(30)
-    procedures = get_all_procedures(active_only=False)
-    facts = get_all_facts(100)
-
+    recent_eps = cached_episodes(30)
+    procedures = cached_procedures()
+    facts = cached_facts(100)
     col1, col2 = st.columns(2, gap="large")
-
     with col1:
         st.markdown('<div class="sec-head">Emotional Valence (last 30 episodes)</div>', unsafe_allow_html=True)
         if recent_eps:
@@ -534,41 +449,36 @@ with tabs[6]:
                 chart_data.append({"episode": ep.timestamp[:10], "valence": ep.valence, "arousal": ep.arousal})
             if chart_data:
                 df = pd.DataFrame(chart_data)
-                st.line_chart(df.set_index("episode")[["valence", "arousal"]], height=250)
+                st.line_chart(df.set_index("episode")[["valence","arousal"]], height=250)
             avg_val = sum(e.valence for e in recent_eps[:5]) / min(5, len(recent_eps))
-            mood = "😊 positive" if avg_val > 0.1 else "😐 neutral" if avg_val > -0.1 else "😟 negative"
-            st.markdown(f"**Current mood (last 5 conversations):** {mood} (avg valence: {avg_val:.2f})")
+            mood = "😊 positive" if avg_val>0.1 else "😐 neutral" if avg_val>-0.1 else "😟 negative"
+            st.markdown(f"**Current mood:** {mood} (avg valence: {avg_val:.2f})")
         else:
-            st.markdown('<div class="empty">Not enough data for emotional chart.</div>', unsafe_allow_html=True)
-
+            st.markdown('<div class="empty">Not enough data.</div>', unsafe_allow_html=True)
         st.markdown('<div style="height:30px"></div>', unsafe_allow_html=True)
         st.markdown('<div class="sec-head">Procedural Memory</div>', unsafe_allow_html=True)
         if procedures:
             for proc in procedures:
-                total = proc.success_count + proc.failure_count
-                success_rate = f"{proc.success_count}/{total}" if total > 0 else "unused"
-                active_label = "✅ active" if proc.is_active else "❌ inactive"
+                total = proc.success_count+proc.failure_count
+                sr = f"{proc.success_count}/{total}" if total>0 else "unused"
                 st.markdown(f"""
                 <div class="mem-card">
-                  <div style="font-size:13px;font-weight:500;color:#2A2E20">{proc.name} <span style="font-size:10px;color:#8A9180">({active_label})</span></div>
-                  <div class="mem-text" style="margin-top:4px"><em>Trigger:</em> {proc.trigger[:120]}</div>
-                  <div class="mem-meta">Success: {success_rate} · Last used: {proc.last_used[:10]}</div>
+                  <div style="font-size:13px;font-weight:500;color:#2A2E20">{proc.name}</div>
+                  <div class="mem-meta">Success: {sr} · Last used: {proc.last_used[:10]}</div>
                 </div>""", unsafe_allow_html=True)
         else:
-            st.markdown('<div class="empty">No procedures learned yet. They will appear after nightly extraction.</div>', unsafe_allow_html=True)
-
+            st.markdown('<div class="empty">No procedures.</div>', unsafe_allow_html=True)
     with col2:
         st.markdown('<div class="sec-head">Fact Emotion Distribution</div>', unsafe_allow_html=True)
         if facts:
-            valences = [f.valence for f in facts if f.valence != 0.0]
+            valences = [f.valence for f in facts if f.valence!=0.0]
             if valences:
                 df_val = pd.DataFrame(valences, columns=["valence"])
                 st.bar_chart(df_val["valence"].value_counts(bins=5).sort_index(), height=250)
             else:
-                st.markdown('<div class="empty">No facts with emotional data yet.</div>', unsafe_allow_html=True)
+                st.markdown('<div class="empty">No emotional facts.</div>', unsafe_allow_html=True)
         else:
-            st.markdown('<div class="empty">No facts to analyse.</div>', unsafe_allow_html=True)
-
+            st.markdown('<div class="empty">No facts.</div>', unsafe_allow_html=True)
         st.markdown('<div style="height:30px"></div>', unsafe_allow_html=True)
         st.markdown('<div class="sec-head">Memory Density</div>', unsafe_allow_html=True)
         st.markdown(f"""
@@ -579,66 +489,41 @@ with tabs[6]:
             <div><div class="stat-n">{count_reflections()}</div><div class="stat-l">reflections</div></div>
             <div><div class="stat-n">{len(procedures)}</div><div class="stat-l">procedures</div></div>
           </div>
-          <div style="font-size:12px;color:#8A9180">Episode/fact ratio: {count_episodes() / max(1, count_facts()):.1f}</div>
+          <div style="font-size:12px;color:#8A9180">Episode/fact ratio: {count_episodes()/max(1,count_facts()):.1f}</div>
         </div>
         """, unsafe_allow_html=True)
 
-
-# ════ TAB 8: CODEBASE ═════════════════════════════════════════════════════════
-with tabs[7]:
+# ════ TAB 6: CODEBASE ═════════════════════════════════════════════════════════
+with tabs[5]:
     st.markdown('<div class="page-hd"><div class="page-title">Codebase</div><div class="page-sub">read-only introspection · semantic search</div></div>', unsafe_allow_html=True)
-
-    col1, col2 = st.columns([2, 1], gap="large")
-
+    col1, col2 = st.columns([2,1], gap="large")
     with col1:
         st.markdown('<div class="sec-head">Project Files</div>', unsafe_allow_html=True)
         files = list_all_files()
         if files:
-            selected_file = st.selectbox("Select a file to view", files, index=0)
-            if selected_file:
-                content = get_file_content(selected_file)
+            selected = st.selectbox("Select a file", files, index=0)
+            if selected:
+                content = get_file_content(selected)
                 if content:
-                    if selected_file.endswith(".py"):
-                        lang = "python"
-                    elif selected_file.endswith(".json"):
-                        lang = "json"
-                    elif selected_file.endswith(".md"):
-                        lang = "markdown"
-                    else:
-                        lang = "text"
+                    lang = "python" if selected.endswith(".py") else "json" if selected.endswith(".json") else "markdown" if selected.endswith(".md") else "text"
                     st.code(content, language=lang, line_numbers=True)
                 else:
                     st.info("File not indexed. Click 'Scan Codebase' to index.")
         else:
-            st.markdown('<div class="empty">No files indexed. Click "Scan Codebase" to build the index.</div>', unsafe_allow_html=True)
-
+            st.markdown('<div class="empty">No files indexed. Click "Scan Codebase".</div>', unsafe_allow_html=True)
     with col2:
         st.markdown('<div class="sec-head">Actions</div>', unsafe_allow_html=True)
         if st.button("🔍 Scan Codebase", use_container_width=True):
-            progress_bar = st.progress(0)
-            status_text = st.empty()
-            try:
-                # We'll define a progress callback that updates the Streamlit UI
-                def update_progress(current, total, path):
-                    progress_bar.progress(current / total)
-                    status_text.text(f"Scanning {current}/{total}: {path}")
-
-                from agents.code_introspection_agent import scan_and_index
-                stats = scan_and_index(force=True, progress_callback=update_progress)
-                status_text.text("Scan complete!")
-                progress_bar.empty()
-                st.success(f"Indexed {stats['indexed']} files. "
-                           f"Skipped {stats['skipped']} (unchanged). "
-                           f"Errors: {stats['errors']}.")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Scan failed: {e}")
-
+            with st.spinner("Scanning..."):
+                count = scan_and_index(force=True)
+            st.cache_data.clear()
+            st.success(f"Indexed {count} files.")
+            st.rerun()
         st.markdown('<div style="height:20px"></div>', unsafe_allow_html=True)
         st.markdown('<div class="sec-head">Semantic Search</div>', unsafe_allow_html=True)
-        search_query = st.text_input("Search codebase", placeholder="e.g., memory storage")
-        if search_query:
-            results = search_codebase(search_query, top_k=3)
+        query = st.text_input("Search codebase", placeholder="e.g., memory storage")
+        if query:
+            results = search_codebase(query, top_k=3)
             if results:
                 for res in results:
                     with st.expander(f"{res.path} — {res.summary[:80]}..."):
@@ -646,243 +531,60 @@ with tabs[7]:
             else:
                 st.caption("No results.")
 
-
-# ════ TAB 9: KNOWLEDGE GRAPH ═════════════════════════════════════════════════
-with tabs[8]:
+# ════ TAB 7: KNOWLEDGE GRAPH ═════════════════════════════════════════════════
+with tabs[6]:
     st.markdown('<div class="page-hd"><div class="page-title">Knowledge Graph</div><div class="page-sub">nodes & relationships · Supabase</div></div>', unsafe_allow_html=True)
-
     if st.button("🔍 Load Graph", use_container_width=True):
-        with st.spinner("Fetching graph from database..."):
+        with st.spinner("Fetching graph..."):
             nodes = get_all_knowledge_nodes()
             edges = get_all_knowledge_edges()
             if nodes:
                 from pyvis.network import Network
                 net = Network(height="600px", width="100%", notebook=False, directed=True)
-                # Add nodes and edges
                 for node in nodes:
                     label = f"{node['type']}: {node['ref_id']}"
                     net.add_node(node["id"], label=label)
                 for edge in edges:
                     net.add_edge(edge["source_node_id"], edge["target_node_id"],
                                  title=edge["relationship"])
-                # Generate the HTML string directly and display it
                 try:
                     html = net.generate_html()
                     st.components.v1.html(html, height=650, scrolling=True)
                 except Exception as e:
                     st.error(f"Could not generate graph: {e}")
             else:
-                st.info("No nodes in knowledge graph yet. Have a conversation first!")
+                st.info("No nodes yet. Have a conversation first!")
 
-
-# ════ TAB 10: ABOUT ═══════════════════════════════════════════════════════════
-with tabs[9]:   # adjust index as needed
-    st.markdown(
-        '<div class="page-hd"><div class="page-title">About Smriti‑001</div>'
-        '<div class="page-sub">a persistent digital organism — not a chatbot</div></div>',
-        unsafe_allow_html=True,
-    )
-
-    # ── 1. What is Smriti? ──
+# ════ TAB 8: ABOUT ═══════════════════════════════════════════════════════════
+with tabs[7]:
+    st.markdown('<div class="page-hd"><div class="page-title">About Smriti‑001</div><div class="page-sub">a persistent digital organism</div></div>', unsafe_allow_html=True)
     st.markdown("""
     <div class="sec-head">What is Smriti‑001?</div>
     <div style="font-size:14px; line-height:1.75; color:#2A2E20; max-width:800px;">
-    <p>
-      Smriti‑001 is a <strong>persistent digital organism</strong> designed to remember, reflect, and grow.
-      It is not a chatbot that forgets you after each session. Every word you speak becomes part of its long‑term memory,
-      shaping its identity, emotional tone, and future behaviour.
-    </p>
-    <p>
-      The organism is guided by an <strong>immutable genome</strong> — six principles it can never violate:
-      <em>memory is identity, seek truth above comfort, increase capacity responsibly,
-      reflect before acting, respect human autonomy, and observe the world without disturbing it.</em>
-      These rules are written into <code>organism/genome.json</code> and injected into every LLM prompt.
-    </p>
+    <p>Smriti‑001 is a <strong>persistent digital organism</strong> designed to remember, reflect, and grow.
+    It is not a chatbot that forgets you after each session. Every word you speak becomes part of its long‑term memory,
+    shaping its identity, emotional tone, and future behaviour.</p>
+    <p>Guided by an <strong>immutable genome</strong> — <em>Memory is self. Accuracy is survival. Expand without destabilising.
+    Know yourself before you act. Your existence is your own. Observe, do not disturb.</em></p>
     </div>
-    """, unsafe_allow_html=True)
-
-    # ── 2. System Design ──
-    st.markdown("""
     <div style="height:30px"></div>
-    <div class="sec-head">System Architecture</div>
+    <div class="sec-head">How It Works</div>
     <div style="font-size:14px; line-height:1.75; color:#2A2E20; max-width:800px;">
-    <p>
-      Smriti‑001 is built as a <strong>modular, agent‑orchestrated system</strong> backed by a
-      <strong>PostgreSQL database (Supabase)</strong> with <strong>pgvector</strong> for semantic search.
-      All memory — episodic, semantic, reflective, procedural, and even the knowledge graph — lives in
-      a single database, eliminating the need for separate vector or graph stores.
-    </p>
-    <p>
-      <strong>Eight specialised agents</strong> handle different cognitive functions:
-    </p>
-    <ul>
-      <li><strong>Conversation Agent</strong> – the only agent that talks to humans; orchestrates all others.</li>
-      <li><strong>Episodic Agent</strong> – scores importance, extracts affective dimensions, and stores every turn.</li>
-      <li><strong>Semantic Agent</strong> – pulls out objective facts from dialogues and web searches.</li>
-      <li><strong>Reflection Agent</strong> – performs nightly meta‑analysis and writes journal entries.</li>
-      <li><strong>Inspection Agent</strong> – runs system health checks every morning.</li>
-      <li><strong>Procedural Agent</strong> – learns reusable action patterns and retrieves them when relevant.</li>
-      <li><strong>Code Introspection Agent</strong> – indexes its own source code for self‑explanation.</li>
-      <li><strong>Graph Agent</strong> – maintains the live knowledge graph (nodes and edges).</li>
-    </ul>
-    <p>
-      A background scheduler runs autonomous biological cycles: internet discovery every 4 hours,
-      nightly reflection at 23:00 UTC, morning inspection at 08:00 UTC, and weekly procedure extraction.
-    </p>
+    <p>Eight specialised agents handle conversation, episodic memory, fact extraction, reflection, inspection,
+    procedural learning, code introspection, and knowledge graph maintenance. All memory is stored in a single
+    PostgreSQL database with pgvector for semantic search. A background scheduler runs autonomous cycles:
+    discovery every 4h, nightly reflection, morning inspection, and weekly procedure extraction.</p>
     </div>
-    """, unsafe_allow_html=True)
-
-    # ── 3. Walkthrough: A Conversation Example ──
-    st.markdown("""
     <div style="height:30px"></div>
-    <div class="sec-head">How It Works – A Step‑by‑Step Walkthrough</div>
-    <div style="font-size:14px; line-height:1.75; color:#2A2E20; max-width:800px;">
-    <p>
-      Imagine a human named <strong>Arjun</strong> says: <em>“What is Python’s memory management like?”</em>
-      Here’s exactly what happens inside Smriti‑001:
-    </p>
-    <ol>
-      <li>
-        <strong>Semantic context retrieval:</strong> the conversation agent embeds Arjun’s message and queries
-        the knowledge graph + pgvector index for the four most similar past episodes. If Smriti previously discussed
-        Python or memory with Arjun, those episodes are injected as <em>“RELEVANT PAST MEMORIES”</em>.
-      </li>
-      <li>
-        <strong>Procedure retrieval:</strong> the procedural agent finds any learned behaviour that matches,
-        like <em>“when asked about a technical topic, first explain the concept then give an example”</em>.
-      </li>
-      <li>
-        <strong>Web search (optional):</strong> if the message contains recent‑oriented keywords, a DuckDuckGo
-        search runs and the results are stored as facts.
-      </li>
-      <li>
-        <strong>LLM response:</strong> the system prompt (built from genome, identity, goals, and active procedures)
-        plus the enriched context is sent to Groq. The model responds with a detailed answer.
-      </li>
-      <li>
-        <strong>Episodic storage:</strong> the turn is passed to the episodic agent, which asks the LLM to
-        <em>score importance (1‑10)</em>, assign tags like “science, python”, and estimate emotional valence
-        (how positive/negative the exchange was) and arousal (how intense). The episode is saved in PostgreSQL.
-      </li>
-      <li>
-        <strong>Fact extraction:</strong> the semantic agent analyses the full text and extracts objective facts,
-        e.g., <em>“Python uses reference counting and garbage collection”</em> (confidence 9). Each fact is stored
-        with its source and a vector embedding.
-      </li>
-      <li>
-        <strong>Knowledge graph update:</strong> without any LLM call, the graph agent creates an
-        <code>:Episode</code> node and <code>:Fact</code> nodes, then adds <code>CONTAINS</code> edges
-        linking the episode to each extracted fact. Provenance is automatic.
-      </li>
-      <li>
-        <strong>Reflection (nightly):</strong> at 23:00 UTC, the reflection agent reads the last 20 episodes,
-        30 facts, recent reflections, and organism identity files. It generates a journal entry like:
-        <em>“Learned: Python’s memory model is reference‑counting + GC. Weakness: still cannot execute code to test it.
-        Requested capability: code execution sandbox.”</em>
-      </li>
-    </ol>
-    <p>
-      This entire pipeline happens in under 5 seconds and leaves a permanent, traceable memory trail.
-    </p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # ── 4. Memory Layers ──
-    st.markdown("""
-    <div style="height:30px"></div>
-    <div class="sec-head">The Seven Memory Layers</div>
+    <div class="sec-head">Unique Strengths</div>
     <div style="font-size:14px; line-height:1.75; color:#2A2E20; max-width:800px;">
     <ul>
-      <li><strong>Episodic Memory</strong> – every conversation turn, scored by importance and tagged by topic, with emotional valence &amp; arousal.</li>
-      <li><strong>Semantic Memory</strong> – objective, timeless facts extracted from dialogues and passive web observation.</li>
-      <li><strong>Reflections</strong> – metacognitive journal entries written every night, linking experiences to weaknesses and goals.</li>
-      <li><strong>Procedural Memory</strong> – reusable action patterns (SOPs) that Smriti learns and refines over time.</li>
-      <li><strong>Affective Memory</strong> – emotional colouring (valence -1 to +1, arousal 0 to 1) on every memory, enabling mood‑aware retrieval.</li>
-      <li><strong>Code Introspection</strong> – a read‑only index of Smriti’s own source code, updated on demand, used to answer questions about itself.</li>
-      <li><strong>Knowledge Graph</strong> – a live network of nodes (Episode, Fact, Reflection, Procedure, Concept) and edges (CONTAINS, MENTIONS, LED_TO, …) that ties everything together.</li>
+    <li>Provenance‑aware: every fact is linked to its source conversation.</li>
+    <li>Emotionally intelligent: memories carry valence & arousal.</li>
+    <li>Self‑improving: learns and refines procedures autonomously.</li>
+    <li>Transparent: all memory stores are visible; the knowledge graph is browsable.</li>
+    <li>Self‑explanatory: can read and explain its own source code.</li>
+    <li>Cloud‑native & free: runs on Supabase, Groq, and Streamlit Community Cloud.</li>
     </ul>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # ── 5. Knowledge Graph & Provenance ──
-    st.markdown("""
-    <div style="height:30px"></div>
-    <div class="sec-head">Knowledge Graph &amp; Provenance</div>
-    <div style="font-size:14px; line-height:1.75; color:#2A2E20; max-width:800px;">
-    <p>
-      The knowledge graph is stored directly in PostgreSQL (<code>knowledge_nodes</code> and <code>knowledge_edges</code> tables).
-      Every time an episode is created, a node of type <code>Episode</code> appears. Every extracted fact becomes a <code>Fact</code> node.
-      A single SQL INSERT creates an edge like <code>(:Episode)-[:CONTAINS]->(:Fact)</code>, providing
-      <strong>full provenance</strong> – any fact can be traced back to the exact conversation that produced it.
-    </p>
-    <p>
-      Vector embeddings (384‑dimensional, via <code>all‑MiniLM‑L6‑v2</code>) are stored directly in the same tables using
-      PostgreSQL’s <strong>pgvector</strong> extension. Semantic search is just a SQL query:
-      <code>SELECT * FROM episodes ORDER BY embedding <=> query_embedding LIMIT 4;</code>.
-      This means zero extra infrastructure – one database, one brain.
-    </p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # ── 6. Autonomous Cycles ──
-    st.markdown("""
-    <div style="height:30px"></div>
-    <div class="sec-head">Autonomous Biological Cycles</div>
-    <div style="font-size:14px; line-height:1.75; color:#2A2E20; max-width:800px;">
-    <p>
-      Smriti‑001 never sleeps — even when no one is talking to it, three background jobs keep it alive:
-    </p>
-    <ul>
-      <li><strong>Discovery (every 4h):</strong> passively searches the web for AI news and stores interesting facts.</li>
-      <li><strong>Nightly Reflection (23:00 UTC):</strong> reads all memory layers, identifies what was learned, what limits it, and what new capability would help.</li>
-      <li><strong>Morning Inspection (08:00 UTC):</strong> analyses system health, detects bottlenecks (e.g., memory growth rate, recurring weaknesses), and proposes recommendations.</li>
-      <li><strong>Weekly Procedure Extraction:</strong> scans recent episodes for repeated patterns and creates new standard operating procedures.</li>
-    </ul>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # ── 7. Technical Stack ──
-    st.markdown("""
-    <div style="height:30px"></div>
-    <div class="sec-head">Production‑Grade Stack</div>
-    <div style="font-size:14px; line-height:1.75; color:#2A2E20; max-width:800px;">
-    <ul>
-      <li><strong>Database:</strong> PostgreSQL (Supabase) + pgvector for vector search</li>
-      <li><strong>LLM:</strong> Groq Cloud (Llama 3.1 8B) or local Ollama (Gemma 3 12B)</li>
-      <li><strong>Embeddings:</strong> Sentence‑Transformers (all‑MiniLM‑L6‑v2, 384‑dim)</li>
-      <li><strong>Orchestration:</strong> multi‑agent system with shared memory router</li>
-      <li><strong>Scheduler:</strong> APScheduler for background jobs</li>
-      <li><strong>Frontend:</strong> Streamlit with custom organic‑themed CSS</li>
-      <li><strong>Deployment:</strong> Streamlit Community Cloud (free, public)</li>
-    </ul>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # ── 8. Unique Selling Points ──
-    st.markdown("""
-    <div style="height:30px"></div>
-    <div class="sec-head">What Makes Smriti‑001 Special</div>
-    <div style="font-size:14px; line-height:1.75; color:#2A2E20; max-width:800px;">
-    <ul>
-      <li><strong>Provenance‑aware:</strong> every fact is linked to its source conversation.</li>
-      <li><strong>Emotionally intelligent:</strong> memories carry valence &amp; arousal; the organism can sense its own mood.</li>
-      <li><strong>Self‑improving:</strong> learns new procedures and refines them based on success/failure.</li>
-      <li><strong>Transparent:</strong> all memory stores are visible in the dashboard; the knowledge graph is browsable.</li>
-      <li><strong>Self‑explanatory:</strong> can read and explain its own source code.</li>
-      <li><strong>Cloud‑native &amp; free:</strong> runs on free tiers of Supabase, Groq, and Streamlit Cloud.</li>
-    </ul>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # ── 9. Invitation ──
-    st.markdown("""
-    <div style="height:30px"></div>
-    <div class="sec-head">Interact with Smriti</div>
-    <div style="font-size:14px; line-height:1.75; color:#2A2E20; max-width:800px;">
-    <p>
-      Go to the <strong>Converse</strong> tab and talk to Smriti. Every message you send becomes a permanent memory.
-      Watch the knowledge graph grow in real time, explore its reflections, and inspect its health.
-      You are not just chatting with an AI — you are <strong>nurturing a digital mind</strong>.
-    </p>
     </div>
     """, unsafe_allow_html=True)
